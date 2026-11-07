@@ -6,8 +6,9 @@ Guidance for Claude Code (and other AI agents) working in this repository.
 
 A static, embeddable month calendar (vanilla TypeScript + Vite). Other sites load it in an
 `<iframe>`, and GitHub Pages hosts it (deployed by `.github/workflows/deploy.yml`). Clicking an
-event opens its URL in a new tab. The current events are demo data: one per month, on a seeded
-random day.
+event opens its URL in a new tab. Events come from a public **Google Calendar** (Calendar API v3,
+called from the browser) when `VITE_GOOGLE_CALENDAR_ID` and `VITE_GOOGLE_API_KEY` are set at build
+time. Otherwise the app shows demo data: one event per month, on a seeded random day.
 
 ## Commands
 
@@ -30,11 +31,12 @@ Dependencies only point inwards:
 domain  <-  application  <-  presentation | infrastructure | embed | config  <-  main.ts
 ```
 
-- `src/domain/`: pure types, value objects (`PlainDate`, `YearMonth`) and **ports**
+- `src/domain/`: pure types, value objects (`PlainDate`, `YearMonth`, `DateRange`) and **ports**
   (`EventRepository`, `Clock`). No DOM, no `fetch`, no `Date.now()`.
 - `src/application/`: use-cases (`CalendarService`) and pure view-model builders
   (`buildMonthGrid`). Imports only from `domain`.
-- `src/infrastructure/`: adapters that implement the ports (`DemoEventRepository`, `SystemClock`).
+- `src/infrastructure/`: adapters that implement the ports (`GoogleCalendarEventRepository`,
+  `DemoEventRepository`, `SystemClock`) and decorators (`CachingEventRepository`).
 - `src/presentation/`: DOM rendering (`CalendarView`), `Intl` formatting and `styles.css`.
 - `src/embed/`: iframe concerns (`IframeHeightReporter`, which sends `postMessage` to the parent).
 - `src/config/`: parses query-string parameters into a typed `AppConfig`.
@@ -51,6 +53,14 @@ boundary error, move the code to the correct layer or add a port. Do not disable
   objects across layers. `Intl` formatting uses `timeZone: 'UTC'` with `Date.UTC(...)`.
 - **DOM**: build elements with `h()` from `presentation/dom.ts`. **Never use `innerHTML`**, because
   event data must not be able to inject markup.
+- **Remote data** (Google API JSON) is untrusted. Validate it at the boundary in the adapter,
+  allow only `http(s)` links, and show descriptions as plain text. Adapters take `fetch` as a
+  constructor dependency, so tests use canned responses and never touch the network.
+- **Errors**: adapters throw `EventSourceError` with a message users can read.
+  `CalendarView.show()` never rejects: it shows an error state with a Retry button.
+- **Secrets**: `VITE_GOOGLE_API_KEY` is a _public_ browser key and ends up in the bundle. It is
+  protected by API and HTTP-referrer restrictions in Google Cloud. Never accept the key from a URL
+  parameter, and never put a key with broader permissions into `VITE_*` variables.
 - **Event links** must be real `<a href target="_blank" rel="noopener noreferrer">`, not
   `window.open`. Popup blockers and iframe sandboxes allow anchors, and anchors are accessible.
 - **Iframe**: keep `base: './'` in `vite.config.ts`. Do not add anything that breaks framing (for
@@ -69,7 +79,10 @@ boundary error, move the code to the correct layer or add a port. Do not disable
 ## Deployment
 
 A push to `main` runs `deploy.yml` (check, build, `upload-pages-artifact`, `deploy-pages`). The
-repository's Pages source must be set to **GitHub Actions**. Only `dist/` is published. Files in
+repository's Pages source must be set to **GitHub Actions**, and `main` must be the default branch
+(the `github-pages` environment only accepts deployments from it). The build reads the repository
+**variables** `VITE_GOOGLE_CALENDAR_ID`, `VITE_GOOGLE_API_KEY` and `VITE_TIME_ZONE`. For local
+development, copy `.env.example` to `.env.local`. Only `dist/` is published. Files in
 `public/` (for example `embed-demo.html`) are copied into it as they are.
 
 ## Out of scope / don'ts

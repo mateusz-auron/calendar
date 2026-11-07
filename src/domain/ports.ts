@@ -1,6 +1,6 @@
 import type { CalendarEvent } from './calendar-event';
+import type { DateRange } from './date-range';
 import type { PlainDate } from './plain-date';
-import type { YearMonth } from './year-month';
 
 /**
  * Port: source of calendar events (Dependency Inversion).
@@ -8,7 +8,8 @@ import type { YearMonth } from './year-month';
  * the rest of the app depends only on this abstraction.
  */
 export interface EventRepository {
-  findByMonth(month: YearMonth): Promise<readonly CalendarEvent[]>;
+  /** Every event that occupies at least one day of `range`. */
+  findInRange(range: DateRange): Promise<readonly CalendarEvent[]>;
 }
 
 /** Port: current date provider, injected to keep logic deterministic and testable. */

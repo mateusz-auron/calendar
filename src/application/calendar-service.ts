@@ -1,11 +1,5 @@
-import {
-  addMonths,
-  type Clock,
-  type EventRepository,
-  type Weekday,
-  type YearMonth,
-} from '../domain';
-import { buildMonthGrid, type MonthView } from './month-grid';
+import type { Clock, EventRepository, Weekday, YearMonth } from '../domain';
+import { buildMonthGrid, gridRange, type MonthView } from './month-grid';
 
 export interface CalendarServiceOptions {
   readonly weekStartsOn: Weekday;
@@ -23,9 +17,8 @@ export class CalendarService {
   ) {}
 
   async getMonthView(month: YearMonth): Promise<MonthView> {
-    // Fetch neighbours too, so events on leading/trailing days of the grid are visible.
-    const months = [addMonths(month, -1), month, addMonths(month, 1)];
-    const events = (await Promise.all(months.map((m) => this.repository.findByMonth(m)))).flat();
+    // One query for the whole visible grid, so leading/trailing days show their events too.
+    const events = await this.repository.findInRange(gridRange(month, this.options.weekStartsOn));
 
     return buildMonthGrid({
       month,

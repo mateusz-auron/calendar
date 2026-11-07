@@ -22,7 +22,7 @@ export interface CalendarViewDeps {
 }
 
 /**
- * Renders the interactive month grid and handles navigation.
+ * Renders the interactive month grid and handles navigation, loading and errors.
  * Events are real `<a target="_blank">` links: accessible, keyboard-friendly,
  * middle-clickable, and not blocked as popups inside iframes.
  */
@@ -41,13 +41,26 @@ export class CalendarView {
     return this.current;
   }
 
+  /** Never rejects: failures are rendered as an error state with a retry button. */
   async show(month: YearMonth): Promise<void> {
     this.current = month;
     const token = ++this.renderToken;
-    const view = await this.deps.service.getMonthView(month);
-    if (token !== this.renderToken) return; // a newer navigation won the race
-    this.deps.root.replaceChildren(this.renderCalendar(view));
-    this.deps.onRender?.();
+    const { root } = this.deps;
+    root.setAttribute('aria-busy', 'true');
+    if (!root.hasChildNodes()) this.render(this.renderStatus(month, 'Loading events…', false));
+
+    try {
+      const view = await this.deps.service.getMonthView(month);
+      if (token !== this.renderToken) return; // a newer navigation won the race
+      this.render(this.renderCalendar(view));
+    } catch (error) {
+      if (token !== this.renderToken) return;
+      console.error('[calendar] failed to load events', error);
+      const message = error instanceof Error ? error.message : 'Unknown error.';
+      this.render(this.renderStatus(month, `Could not load events. ${message}`, true));
+    } finally {
+      if (token === this.renderToken) root.removeAttribute('aria-busy');
+    }
   }
 
   next(): Promise<void> {
@@ -62,6 +75,15 @@ export class CalendarView {
     return this.show(yearMonthOf(this.deps.clock.today()));
   }
 
+  retry(): Promise<void> {
+    return this.show(this.current);
+  }
+
+  private render(node: Node): void {
+    this.deps.root.replaceChildren(node);
+    this.deps.onRender?.();
+  }
+
   private renderCalendar(view: MonthView): HTMLElement {
     const title = this.deps.formatter.month(view.month);
     return h(
@@ -69,6 +91,28 @@ export class CalendarView {
       { class: 'calendar', 'aria-label': title },
       this.renderHeader(title),
       this.renderGrid(view),
+    );
+  }
+
+  private renderStatus(month: YearMonth, message: string, isError: boolean): HTMLElement {
+    const title = this.deps.formatter.month(month);
+    const retry = isError
+      ? h('button', { type: 'button', class: 'calendar__nav calendar__retry' }, 'Retry')
+      : null;
+    retry?.addEventListener('click', () => void this.retry());
+    return h(
+      'section',
+      { class: 'calendar', 'aria-label': title },
+      this.renderHeader(title),
+      h(
+        'div',
+        {
+          class: `calendar__status${isError ? ' calendar__status--error' : ''}`,
+          role: isError ? 'alert' : 'status',
+        },
+        h('p', {}, message),
+        retry,
+      ),
     );
   }
 
@@ -143,16 +187,19 @@ export class CalendarView {
   }
 
   private renderEvent(event: CalendarEvent): HTMLElement {
+    const time = event.startTime ? this.deps.formatter.time(event.startTime) : undefined;
+    const label = time ? `${time} ${event.title}` : event.title;
     return h(
       'a',
       {
-        class: 'calendar__event',
+        class: `calendar__event${event.endDate ? ' calendar__event--multi-day' : ''}${time ? ' calendar__event--timed' : ''}`,
         href: event.url,
         target: '_blank',
         rel: 'noopener noreferrer',
-        title: event.description ?? event.title,
+        title: event.description ? `${label}\n${event.description}` : label,
         'data-event-id': event.id,
       },
+      time ? h('span', { class: 'calendar__event-time' }, time) : null,
       event.title,
     );
   }

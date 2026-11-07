@@ -3,13 +3,15 @@
 An interactive month calendar for embedding in other pages with an `<iframe>`. It is a static
 site, deployed to GitHub Pages by GitHub Actions.
 
-- Events can be clicked and open in a **new tab** (for now every event points to `https://www.google.com/`).
-- **Demo data:** one event per month on a pseudo-random day. The days are deterministic, so they
-  stay the same across reloads.
+- **Google Calendar integration:** shows events from a public Google Calendar, including
+  repeating, timed and multi-day events.
+- Events can be clicked and open in a **new tab**. Google events open their Google Calendar page.
+- **Demo data:** used when no Google Calendar is configured. It has one event per month on a
+  pseudo-random day, and the days stay the same across reloads.
 - **Iframe-ready:** the widget sends its height to the host page, so the iframe can resize without
   scrollbars.
 - Uses the browser's locale by default; you can set the locale, the first day of the week and the theme through URL parameters.
-- No runtime dependencies (vanilla TypeScript). The bundle is about 3.5 kB gzipped.
+- No runtime dependencies (vanilla TypeScript). The bundle is about 6 kB gzipped.
 
 ## Quick start
 
@@ -30,6 +32,60 @@ npm run dev        # http://localhost:5173
 | `npm run lint`          | ESLint (strict, type-checked, layer boundaries) |
 | `npm run format`        | Prettier                                        |
 | `npm run check`         | Everything CI runs, in one command              |
+
+## Google Calendar
+
+The calendar reads a **public** Google Calendar through the Google Calendar API v3, directly
+from the visitor's browser. If no calendar is configured, it shows the demo events.
+
+### 1. Make the calendar public and copy its ID
+
+In Google Calendar, open the calendar's **Settings and sharing**:
+
+- Under **Access permissions for events**, tick **Make available to public** and choose
+  **See all event details**.
+- Under **Integrate calendar**, copy the **Calendar ID** (for example
+  `abc123@group.calendar.google.com`).
+
+### 2. Create a browser API key
+
+In [Google Cloud Console](https://console.cloud.google.com/):
+
+1. Enable **Google Calendar API** (APIs & Services → Library).
+2. Go to **Credentials → Create credentials → API key**.
+3. Restrict the key:
+   - **Application restrictions → Websites:** add `https://<user>.github.io/*`, and
+     `http://localhost:5173/*` for development.
+   - **API restrictions → Restrict key:** select only **Google Calendar API**.
+
+The key is included in the page's JavaScript, so anyone can see it. That is expected for a
+browser key that only reads public data. The restrictions above stop other sites and other APIs
+from using it. A key works for any public calendar, not only yours. Never use a key that has
+broader permissions.
+
+### 3. Configure
+
+| Variable                  | Required | Description                                                                        |
+| ------------------------- | -------- | ---------------------------------------------------------------------------------- |
+| `VITE_GOOGLE_CALENDAR_ID` | yes      | Public calendar ID                                                                 |
+| `VITE_GOOGLE_API_KEY`     | yes      | Restricted browser API key                                                         |
+| `VITE_TIME_ZONE`          | no       | IANA zone for placing events on days, e.g. `Europe/Warsaw` (default: the viewer's) |
+
+- **On GitHub:** go to **Settings → Secrets and variables → Actions → Variables** and add these
+  as repository **variables**. The deploy workflow reads them when it builds. Then run the deploy
+  workflow again.
+- **Locally:** copy `.env.example` to `.env.local` (git-ignored) and fill it in.
+
+### How Google events are shown
+
+- **Repeating events** are expanded by Google (`singleEvents=true`).
+- **Timed events** show their start time. They are placed on days using `tz` /
+  `VITE_TIME_ZONE`, or the viewer's time zone if neither is set.
+- **Multi-day events** appear on every day they cover.
+- **Clicking an event** opens its Google Calendar page (`htmlLink`).
+- **Descriptions** are shown as plain-text tooltips.
+- **Months already loaded** are cached, so going back and forth doesn't fetch them again.
+- **Errors** (calendar not public, wrong key, network) show a message with a **Retry** button.
 
 ## Deploying to GitHub Pages
 
@@ -76,13 +132,15 @@ restrictions. A working example is deployed at `/embed-demo.html` (source:
 
 ### URL parameters
 
-| Parameter      | Example               | Default           | Description                                            |
-| -------------- | --------------------- | ----------------- | ------------------------------------------------------ |
-| `month`        | `2026-03`             | current month     | Month shown first                                      |
-| `lang`         | `pl-PL`               | browser language  | Locale used for month and weekday names                |
-| `weekStart`    | `0` (Sun) / `1` (Mon) | `1`               | First day of the week                                  |
-| `theme`        | `light` / `dark`      | system preference | Colour theme                                           |
-| `parentOrigin` | `https://example.com` | `*`               | Target origin for resize `postMessage` (lock it down!) |
+| Parameter      | Example                         | Default                    | Description                                                 |
+| -------------- | ------------------------------- | -------------------------- | ----------------------------------------------------------- |
+| `month`        | `2026-03`                       | current month              | Month shown first                                           |
+| `lang`         | `pl-PL`                         | browser language           | Locale used for month and weekday names                     |
+| `weekStart`    | `0` (Sun) / `1` (Mon)           | `1`                        | First day of the week                                       |
+| `theme`        | `light` / `dark`                | system preference          | Colour theme                                                |
+| `parentOrigin` | `https://example.com`           | `*`                        | Target origin for resize `postMessage` (lock it down!)      |
+| `tz`           | `Europe/Warsaw`                 | `VITE_TIME_ZONE` or viewer | Time zone used to place timed events on days                |
+| `calendar`     | `abc@group.calendar.google.com` | `VITE_GOOGLE_CALENDAR_ID`  | Show a different public calendar (uses the build's API key) |
 
 ### Resize message contract
 
@@ -100,14 +158,18 @@ src/
 ├── domain/          Pure model + ports. No DOM, no I/O.
 │   ├── plain-date.ts       timezone-free date value object
 │   ├── year-month.ts       month value object & arithmetic
-│   ├── calendar-event.ts   CalendarEvent entity
+│   ├── date-range.ts       inclusive day range + overlap helpers
+│   ├── calendar-event.ts   CalendarEvent entity (all-day / timed / multi-day)
 │   └── ports.ts            EventRepository, Clock (interfaces)
 ├── application/     Use-cases; depend only on domain ports.
 │   ├── month-grid.ts       pure 6×7 grid builder (view-model)
 │   └── calendar-service.ts "get month view" use-case
 ├── infrastructure/  Adapters implementing domain ports.
-│   ├── demo-event-repository.ts  one seeded-random event per month
-│   ├── seeded-random.ts          mulberry32 PRNG
+│   ├── google-calendar-event-repository.ts  Google Calendar API v3 adapter
+│   ├── caching-event-repository.ts          caching decorator for any repository
+│   ├── demo-event-repository.ts             one seeded-random event per month
+│   ├── zoned-time.ts                        instant → wall-clock date/time in a time zone
+│   ├── seeded-random.ts                     mulberry32 PRNG
 │   └── system-clock.ts
 ├── presentation/    DOM rendering (no innerHTML → XSS-safe), CSS, Intl formatting.
 ├── embed/           Iframe integration (height reporter via postMessage).
@@ -118,21 +180,21 @@ src/
 How the SOLID principles show up in the code:
 
 - **S**: each module has one reason to change (grid maths, formatting, rendering, embedding, config).
-- **O/L**: you add a new data source by writing another `EventRepository` (for example a JSON or REST
-  adapter). The existing code does not change.
-- **I**: the ports are small (`findByMonth`, `today`).
+- **O/L**: a new data source is another `EventRepository`. Google Calendar was added this way,
+  without changing the domain or the view. Caching is a decorator that wraps any repository.
+- **I**: the ports are small (`findInRange`, `today`).
 - **D**: the application layer depends on abstractions. `main.ts` injects the concrete classes.
 
-### Replacing demo data with real events
+### Adding another event source
 
-Implement the port and swap it in `src/main.ts`:
+Implement the port, then choose it in `createRepository()` in `src/main.ts`:
 
 ```ts
 export class HttpEventRepository implements EventRepository {
   constructor(private readonly baseUrl: string) {}
-  async findByMonth({ year, month }: YearMonth): Promise<readonly CalendarEvent[]> {
+  async findInRange({ start, end }: DateRange): Promise<readonly CalendarEvent[]> {
     const res = await fetch(
-      `${this.baseUrl}/events?month=${year}-${String(month).padStart(2, '0')}`,
+      `${this.baseUrl}/events?from=${toIsoString(start)}&to=${toIsoString(end)}`,
     );
     return parseEvents(await res.json()); // validate at the boundary
   }

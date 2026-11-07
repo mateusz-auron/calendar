@@ -28,6 +28,13 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+        env:
+          # Repository variables (Settings → Secrets and variables → Actions → Variables).
+          # Unset ⇒ the site falls back to demo events. The API key is a public browser
+          # key (it ships in the bundle); protect it with API + HTTP-referrer restrictions.
+          VITE_GOOGLE_CALENDAR_ID: ${{ vars.VITE_GOOGLE_CALENDAR_ID }}
+          VITE_GOOGLE_API_KEY: ${{ vars.VITE_GOOGLE_API_KEY }}
+          VITE_TIME_ZONE: ${{ vars.VITE_TIME_ZONE }}
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
