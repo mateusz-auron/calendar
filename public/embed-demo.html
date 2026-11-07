@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calendar – iframe embed demo</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: system-ui, sans-serif;
+        background: #f6f8fa;
+      }
+      .host {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: 640px; /* initial; updated by postMessage */
+        border: 0;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="host">
+      <h1>Host page</h1>
+      <p>This page embeds the calendar in an <code>&lt;iframe&gt;</code> and auto-resizes it.</p>
+      <iframe
+        id="calendar"
+        src="./index.html"
+        title="Event calendar"
+        loading="lazy"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      ></iframe>
+    </div>
+    <script>
+      const frame = document.getElementById('calendar');
+      window.addEventListener('message', (event) => {
+        if (event.source !== frame.contentWindow) return;
+        const data = event.data;
+        if (data && data.type === 'calendar:resize' && typeof data.height === 'number') {
+          frame.style.height = data.height + 'px';
+        }
+      });
+    </script>
+  </body>
+</html>
