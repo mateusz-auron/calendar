@@ -31,6 +31,8 @@ export interface DetailsBridgeHandlers {
  */
 export class DetailsBridge {
   private supported = false;
+  /** The month on screen, sent again once the host announces a details layer. */
+  private lastMonth: { month: YearMonth; filter: GameFilter } | undefined;
   private readonly onMessage = (event: MessageEvent) => {
     this.handle(event);
   };
@@ -60,7 +62,14 @@ export class DetailsBridge {
 
   /** Lets the details layer load the month the visitor is looking at ahead of time. */
   monthShown(month: YearMonth, filter: GameFilter): void {
-    if (this.supported) this.post({ type: MSG.month, month: encodeMonth(month), filter });
+    this.lastMonth = { month, filter };
+    if (this.supported) this.postMonth();
+  }
+
+  private postMonth(): void {
+    if (!this.lastMonth) return;
+    const { month, filter } = this.lastMonth;
+    this.post({ type: MSG.month, month: encodeMonth(month), filter });
   }
 
   private handle(event: MessageEvent): void {
@@ -68,9 +77,13 @@ export class DetailsBridge {
     const data: unknown = event.data;
     if (!isRecord(data)) return;
     switch (data.type) {
-      case MSG.host:
+      case MSG.host: {
+        const wasSupported = this.supported;
         this.supported = data.details === true;
+        // The layer may have appeared after the first month was shown: let it preload now.
+        if (this.supported && !wasSupported) this.postMonth();
         break;
+      }
       case MSG.detailsClosed:
         this.handlers.onClosed(typeof data.eventId === 'string' ? data.eventId : undefined);
         break;

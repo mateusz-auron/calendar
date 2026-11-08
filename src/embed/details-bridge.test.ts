@@ -36,6 +36,15 @@ describe('DetailsBridge', () => {
     ]);
   });
 
+  it('sends the month on screen as soon as a details layer is announced later', () => {
+    const { bridge, receive, sent } = setup();
+    bridge.monthShown(yearMonth(2026, 11), 'all'); // before the host announced anything
+    expect(sent()).toHaveLength(1);
+    receive({ type: 'calendar:host', details: true });
+    receive({ type: 'calendar:host', details: true }); // announced again: no duplicate
+    expect(sent().slice(1)).toEqual([{ type: 'calendar:month', month: '2026-11', filter: 'all' }]);
+  });
+
   it('passes closed, month and fallback messages to its handlers', () => {
     const { receive, handlers } = setup();
     receive({ type: 'calendar:details-closed', eventId: 'dec5' });

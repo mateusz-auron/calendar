@@ -21,7 +21,7 @@
   var ATTRIBUTE = 'data-tournament-calendar';
   var OPEN_CLASS = 'calendar-dialog-open';
   /** If the details layer does not answer, the calendar opens the details itself. */
-  var FALLBACK_MS = 2500;
+  var FALLBACK_MS = 6000;
 
   function withParam(src, name, value) {
     var url = new URL(src, window.location.href);
@@ -59,8 +59,10 @@
       if (layer && layer.contentWindow) layer.contentWindow.postMessage(message, origin);
     }
 
+    // Announced as soon as the layer exists, even while it is still loading: requests that
+    // arrive before it is ready wait for it (see requestDetails).
     function announce() {
-      if (layerReady) toCalendar({ type: 'calendar:host', details: true });
+      if (layer) toCalendar({ type: 'calendar:host', details: true });
     }
 
     function createLayer() {
@@ -145,12 +147,12 @@
     }
 
     function requestDetails(data) {
-      if (!layer || !layerReady) {
+      if (!layer) {
         toCalendar({ type: 'calendar:details-fallback', request: data });
         return;
       }
       pending = data;
-      toLayer(data);
+      if (layerReady) toLayer(data); // otherwise sent when the layer says hello
       clearTimeout(fallbackTimer);
       fallbackTimer = setTimeout(function () {
         var request = pending;
@@ -167,10 +169,12 @@
       if (event.source === frame.contentWindow) {
         switch (data.type) {
           case 'calendar:hello':
-            createLayer();
             announce();
             break;
           case 'calendar:resize':
+            // Also answers a hello that was sent before this script started listening
+            // (after a cached refresh the calendar can load before embed.js runs).
+            announce();
             if (typeof data.height === 'number') frame.style.height = data.height + 'px';
             break;
           case 'calendar:focus':
@@ -200,6 +204,7 @@
             layerReady = true;
             announce();
             if (lastMonth) toLayer(lastMonth);
+            if (pending) toLayer(pending); // tapped while the layer was still loading
             break;
           case 'calendar:details-ready':
             // Too late (the calendar already opened the details itself): close it again.
@@ -227,6 +232,11 @@
         }
       }
     });
+
+    // Create the details layer at once instead of waiting for the calendar's hello: that
+    // hello may already have been sent before this script ran.
+    createLayer();
+    frame.addEventListener('load', announce);
   }
 
   function attachAll() {

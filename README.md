@@ -224,7 +224,7 @@ is the `data-tournament-calendar` iframe; the details layer is the same page wit
 { type: 'calendar:details', date: 'YYYY-MM-DD', eventId?: string, filter: string } // open details
 
 // host → calendar
-{ type: 'calendar:host', details: true } // a details layer is ready: send calendar:details
+{ type: 'calendar:host', details: true } // a details layer exists (requests wait until it loaded)
 { type: 'calendar:details-closed', eventId?: string } // layer closed: restore focus
 { type: 'calendar:month', month: 'YYYY-MM' } // prev/next in the layer moved to another month
 { type: 'calendar:details-fallback', request: { date, eventId?, filter } } // open it yourself
