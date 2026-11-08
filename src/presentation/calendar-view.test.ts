@@ -328,6 +328,32 @@ describe('CalendarView – details dialog', () => {
     expect(position()).toBe('2 / 2');
   });
 
+  it('drags the phone sheet down to close it, without letting the drag scroll the page', async () => {
+    // Narrow screen: the dialog is a bottom sheet that can be dragged.
+    vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList);
+    const { root, view, dialog } = createView();
+    await view.show(view.month);
+    tile(root, 'nov14')?.click();
+    const banner = dialog.querySelector('.cal-ev__banner');
+    const touch = (type: string, clientY?: number) => {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'touches', {
+        value: clientY === undefined ? [] : [{ clientY }],
+      });
+      banner?.dispatchEvent(event);
+      return event;
+    };
+
+    touch('touchstart', 100);
+    // A scroll started by the drag would keep coasting after the sheet closes, and the next
+    // tap on the calendar would only stop it instead of opening an event.
+    expect(touch('touchmove', 150).defaultPrevented).toBe(true);
+    touch('touchmove', 260);
+    touch('touchend');
+    expect(dialog.open).toBe(false);
+    vi.restoreAllMocks();
+  });
+
   it('closes when the month is changed from the header', async () => {
     const { root, view, dialog } = createView();
     await view.show(view.month);

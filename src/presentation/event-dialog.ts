@@ -342,15 +342,19 @@ export class EventDialog {
       },
       { passive: true },
     );
+    // Not passive: while the sheet follows the finger, the browser must not also turn the
+    // drag into a scroll. A scroll fling would keep going after the sheet closed, and the
+    // next tap on the calendar would only stop it instead of opening an event.
     handle.addEventListener(
       'touchmove',
       (event) => {
         const touch = event.touches[0];
         if (startY === undefined || !touch) return;
+        if (event.cancelable) event.preventDefault();
         dy = Math.max(0, touch.clientY - startY);
         this.element.style.transform = `translateY(${String(dy)}px)`;
       },
-      { passive: true },
+      { passive: false },
     );
     const end = () => {
       if (startY === undefined) return;
