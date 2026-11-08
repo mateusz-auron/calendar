@@ -325,8 +325,8 @@ Split the current 200-line `CalendarView` into focused renderers, all using `h()
     wkrótce" are `<span aria-disabled="true">`, not links.
   - Day dialog (from "+N więcej" or the day number): the events of that day are stacked, as
     in the design. Prev/next navigates event by event.
-  - "n / N": the position within the visible month (filter applied). Hidden when the event
-    is outside the visible month.
+  - "n / N": the position within the event's own month (filter applied), also for an event
+    from a neighbouring month shown in the grid's first or last row.
   - Mobile: bottom sheet. Drag to close (>90 px) on the banner uses a non-passive
     `touchmove` listener, only while dragging. Respect `prefers-reduced-motion`.
 - `game-theme.ts`: `GameId | 'generic'` → `{ color, tint, dot, imgBg, logoUrl }`. Logos are
@@ -467,8 +467,9 @@ tutaj</a>` → the real URL, a `javascript:` href rejected. Markup in a descript
    applied. Only a _missing_ `game` line creates a generic event.
 3. A missing or invalid `tournament_link` on an upcoming game event shows a disabled
    "Zapisy wkrótce". It does not fall back to the Google event page.
-4. The dialog's "n / N" counter counts events **in the visible month** (filter applied).
-   Prev/next still crosses months, for up to 3 months.
+4. The dialog's "n / N" counter counts events **in the event's own month** (filter applied).
+   Prev/next crosses months (up to 3 empty months): from n / n it goes to 1 / N of the next
+   month, and from 1 / N back to the last event of the previous month.
 5. "Past" is decided by the last day in the **store's** time zone, not by end time. On the
    event's day, registration is still shown.
 6. Polish is the default UI language (`VITE_LOCALE`, override with `?lang=en`), and
