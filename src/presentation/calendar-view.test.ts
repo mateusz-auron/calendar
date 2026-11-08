@@ -228,6 +228,19 @@ describe('CalendarView – details dialog', () => {
     expect(dialog.querySelector('.cal-ev__link')?.textContent).toContain('Wyznacz trasę');
   });
 
+  it('hides the location and directions link when neither the event nor a default has one', async () => {
+    const { location, ...withoutLocation } = tournament('no-location', [2026, 11, 14]);
+    expect(location).toBeTruthy();
+    const { root, view, dialog } = createView(repo([withoutLocation]));
+    await view.show(view.month);
+    tile(root, 'no-location')?.click();
+    const labels = [...dialog.querySelectorAll('.cal-fact dt')].map((dt) => dt.textContent);
+    expect(labels).not.toContain('Miejsce');
+    expect([...dialog.querySelectorAll('.cal-ev__link')].map((a) => a.textContent)).toEqual([
+      'Dodaj do kalendarza (otwiera się w nowej karcie)',
+    ]);
+  });
+
   it('shows a generic event with only title, date and notes', async () => {
     const { root, view, dialog } = createView();
     await view.show(view.month);

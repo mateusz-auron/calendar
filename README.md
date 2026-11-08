@@ -115,18 +115,18 @@ permissions.
 Add these as repository **variables** under **Settings → Secrets and variables → Actions →
 Variables**. For local development, put them in `.env.local` (copy `.env.example`).
 
-| Variable                  | Used by | Description                                                                            |
-| ------------------------- | ------- | -------------------------------------------------------------------------------------- |
-| `ICAL_URL`                | A       | Public iCal address; enables the scheduled sync                                        |
-| `ICAL_PAST_MONTHS`        | A       | Months of history in the snapshot (default 12)                                         |
-| `ICAL_FUTURE_MONTHS`      | A       | Months ahead in the snapshot (default 24)                                              |
-| `VITE_GOOGLE_CALENDAR_ID` | B       | Public calendar ID                                                                     |
-| `VITE_GOOGLE_API_KEY`     | B       | Restricted browser API key                                                             |
-| `VITE_TIME_ZONE`          | A, B    | IANA zone of the store's calendar (default `Europe/Warsaw`)                            |
-| `VITE_EVENT_SOURCE`       | —       | `auto` (default: every configured source, API first) or `ical` / `google-api` / `demo` |
-| `VITE_LOCALE`             | —       | UI language (default `pl-PL`)                                                          |
-| `VITE_DEFAULT_SEATS`      | —       | Seats shown when a tournament gives none (default 12)                                  |
-| `VITE_DEFAULT_LOCATION`   | —       | Store name and address, used when an event has no location                             |
+| Variable                  | Used by | Description                                                                              |
+| ------------------------- | ------- | ---------------------------------------------------------------------------------------- |
+| `ICAL_URL`                | A       | Public iCal address; enables the scheduled sync                                          |
+| `ICAL_PAST_MONTHS`        | A       | Months of history in the snapshot (default 12)                                           |
+| `ICAL_FUTURE_MONTHS`      | A       | Months ahead in the snapshot (default 24)                                                |
+| `VITE_GOOGLE_CALENDAR_ID` | B       | Public calendar ID                                                                       |
+| `VITE_GOOGLE_API_KEY`     | B       | Restricted browser API key                                                               |
+| `VITE_TIME_ZONE`          | A, B    | IANA zone of the store's calendar (default `Europe/Warsaw`)                              |
+| `VITE_EVENT_SOURCE`       | —       | `auto` (default: every configured source, API first) or `ical` / `google-api` / `demo`   |
+| `VITE_LOCALE`             | —       | UI language (default `pl-PL`)                                                            |
+| `VITE_DEFAULT_SEATS`      | —       | Seats shown when a tournament gives none (default 12)                                    |
+| `VITE_DEFAULT_LOCATION`   | —       | Optional. Store name and address for events without a location (else no directions link) |
 
 ### How events are shown
 
