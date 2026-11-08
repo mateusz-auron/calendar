@@ -87,7 +87,9 @@ How the sync works (`.github/workflows/deploy.yml`):
   deploys still go ahead and keep the previously deployed events.
 - **GitHub runs schedules on a best-effort basis**, often 5–30 minutes late, and only on the
   default branch. In public repositories, GitHub disables schedules after **60 days without a
-  commit**. If that happens, re-enable the workflow in the Actions tab.
+  commit**. The monthly `keepalive.yml` workflow prevents this by re-enabling `deploy.yml` (and
+  itself) through the GitHub API, without commits. If the sync ever stops anyway, re-enable the
+  workflow in the Actions tab.
 - **Actions minutes:** free and unlimited for public repositories. On private repositories every
   run uses minutes (about 30–40 per hour at this interval). Lower the cron frequency if needed.
 

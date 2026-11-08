@@ -114,7 +114,9 @@ repository's Pages source must be set to **GitHub Actions**, and `main` must be 
 - `VITE_DEFAULT_SEATS` (default 12) and `VITE_DEFAULT_LOCATION` (the store address).
 
 The workflow also runs every 10 minutes. Those scheduled runs only re-sync the iCal feed, skip
-the checks, and deploy only when the events changed compared with the live `events.json`. A
+the checks, and deploy only when the events changed compared with the live `events.json`.
+`keepalive.yml` runs monthly and re-enables `deploy.yml` (and itself) through the API, so GitHub's
+60-day inactivity rule never disables the schedule. It needs only `actions: write`; keep it that way. A
 failed sync on a push keeps the previously deployed snapshot. Never commit `public/events.json`,
 because it is generated. For local
 development, copy `.env.example` to `.env.local`. Only `dist/` is published. Files in
