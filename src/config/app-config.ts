@@ -6,8 +6,6 @@ import {
   type YearMonth,
 } from '../domain';
 
-export type Theme = 'auto' | 'light' | 'dark';
-
 /** Where events come from. */
 export type EventSourceKind = 'google-api' | 'ical' | 'demo';
 
@@ -22,7 +20,6 @@ export interface AppConfig {
   /** BCP-47 locale for month/weekday/time labels. */
   readonly locale: string;
   readonly weekStartsOn: Weekday;
-  readonly theme: Theme;
   /** Origin allowed to receive iframe resize messages (`*` = any). */
   readonly parentOrigin: string;
   /** IANA time zone used to place timed events on days. */
@@ -62,7 +59,6 @@ export const DEFAULT_CONFIG: AppConfig = {
   initialMonth: undefined,
   locale: 'pl-PL',
   weekStartsOn: 1,
-  theme: 'auto',
   parentOrigin: '*',
   timeZone: 'Europe/Warsaw',
   eventSources: ['demo'],
@@ -76,14 +72,13 @@ export const DEFAULT_CONFIG: AppConfig = {
 /**
  * Reads configuration from query-string parameters so the host page can
  * customise the widget purely through the iframe `src` attribute, e.g.
- * `?month=2026-03&lang=pl-PL&weekStart=1&theme=dark&tz=Europe/Warsaw&calendar=<id>&game=pokemon`.
+ * `?month=2026-03&lang=pl-PL&weekStart=1&tz=Europe/Warsaw&calendar=<id>&game=pokemon`.
  * The API key is build-time only (never a URL parameter).
  */
 export function parseConfig(search: string, defaults: ConfigDefaults = {}): AppConfig {
   const params = new URLSearchParams(search);
   const month = params.get('month');
   const weekStart = params.get('weekStart');
-  const theme = params.get('theme');
   const calendarId = (params.get('calendar') ?? defaults.calendarId)?.trim();
   const apiKey = defaults.apiKey?.trim();
   const google = calendarId && apiKey ? { calendarId, apiKey } : undefined;
@@ -92,7 +87,6 @@ export function parseConfig(search: string, defaults: ConfigDefaults = {}): AppC
     initialMonth: month ? parseYearMonth(month) : undefined,
     locale: safeLocale(params.get('lang') ?? defaults.locale),
     weekStartsOn: weekStart === '0' ? 0 : weekStart === '1' ? 1 : DEFAULT_CONFIG.weekStartsOn,
-    theme: theme === 'light' || theme === 'dark' ? theme : DEFAULT_CONFIG.theme,
     parentOrigin: safeOrigin(params.get('parentOrigin')),
     timeZone: safeTimeZone(params.get('tz') ?? defaults.timeZone),
     eventSources: resolveSources(defaults.eventSource, {

@@ -5,6 +5,9 @@ Source design: Claude Design canvas "TCG Event Calendar — LGS embed", artboard
 Its desktop width is 1200 px and its mobile width is 390 px. V1 and V3 are older explorations
 and are out of scope.
 
+> **Status:** steps 1–6 are implemented. The dark theme is out of scope (light only, as in
+> the design), so the `theme` URL parameter was removed.
+>
 > Revision 2: this version was checked against the code and the design. Corrections to
 > revision 1 are marked **(fix)**, and the full edge-case list is in §8.
 

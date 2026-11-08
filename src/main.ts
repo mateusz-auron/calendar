@@ -4,7 +4,7 @@ import './presentation/styles.css';
 import { CalendarService } from './application';
 import { parseConfig, type AppConfig, type EventSourceKind } from './config/app-config';
 import type { EventRepository } from './domain';
-import { IframeHeightReporter } from './embed/iframe-height-reporter';
+import { DialogFocusRequester, IframeHeightReporter, VisibleAreaTracker } from './embed';
 import {
   CachingEventRepository,
   DemoEventRepository,
@@ -66,7 +66,6 @@ function bootstrap(): void {
     defaultSeats: import.meta.env.VITE_DEFAULT_SEATS,
     defaultLocation: import.meta.env.VITE_DEFAULT_LOCATION,
   });
-  if (config.theme !== 'auto') document.documentElement.dataset.theme = config.theme;
   document.documentElement.lang = config.locale;
 
   const clock = new SystemClock(config.timeZone);
@@ -98,6 +97,17 @@ function bootstrap(): void {
   );
 
   reporter.start();
+  if (reporter.isEmbedded) {
+    // Keep the details dialog inside the part of the iframe that is on screen.
+    const visibleArea = new VisibleAreaTracker(window);
+    visibleArea.start();
+    new DialogFocusRequester(
+      window,
+      view.dialogElement,
+      () => visibleArea.current,
+      config.parentOrigin,
+    ).start();
+  }
   void view.show(view.month);
 }
 

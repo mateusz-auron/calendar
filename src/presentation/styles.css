@@ -1,4 +1,4 @@
-/* Tokens from the V2 design ("Kalendarz turniejów"). Game colours come from game-theme.ts. */
+/* Tokens from the V2 design ("Kalendarz turniejów"), light only. Game colours: game-theme.ts. */
 :root {
   color-scheme: light;
   --c-fg: #171a21;
@@ -26,57 +26,6 @@
   --font-display: 'Bricolage Grotesque', Inter, system-ui, sans-serif;
   --shadow-tile: 0 6px 16px rgb(23 26 33 / 0.1);
   --shadow-dialog: 0 24px 64px rgb(23 26 33 / 0.28);
-}
-
-/* Dark theme: the design is light-only; these values keep ?theme=dark usable. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --c-fg: #e8eaee;
-    --c-fg-2: #c9cdd4;
-    --c-muted: #a3a9b4;
-    --c-faint: #7c8390;
-    --c-outside: #5b6270;
-    --c-bg: #111317;
-    --c-surface: #1b1e24;
-    --c-surface-2: #181b20;
-    --c-chip: #22262d;
-    --c-hover: #262a31;
-    --c-weekend: #15181c;
-    --c-weekend-head: #1d2026;
-    --c-outside-bg: #0d0f12;
-    --c-outside-weekend: #101215;
-    --c-border: #2a2e36;
-    --c-border-2: #30353e;
-    --c-line: #22262d;
-    --c-strong-border: #454b56;
-    --c-cta: #e8eaee;
-    --c-cta-fg: #111317;
-  }
-}
-
-:root[data-theme='dark'] {
-  color-scheme: dark;
-  --c-fg: #e8eaee;
-  --c-fg-2: #c9cdd4;
-  --c-muted: #a3a9b4;
-  --c-faint: #7c8390;
-  --c-outside: #5b6270;
-  --c-bg: #111317;
-  --c-surface: #1b1e24;
-  --c-surface-2: #181b20;
-  --c-chip: #22262d;
-  --c-hover: #262a31;
-  --c-weekend: #15181c;
-  --c-weekend-head: #1d2026;
-  --c-outside-bg: #0d0f12;
-  --c-outside-weekend: #101215;
-  --c-border: #2a2e36;
-  --c-border-2: #30353e;
-  --c-line: #22262d;
-  --c-strong-border: #454b56;
-  --c-cta: #e8eaee;
-  --c-cta-fg: #111317;
 }
 
 *,
@@ -1185,6 +1134,27 @@ button.cal-day__num {
 
   .cal-ev__body {
     padding: 18px 20px 20px;
+  }
+}
+
+/*
+ * Embedded: the iframe is as tall as its content, so its viewport is mostly off-screen.
+ * embed/visible-area.ts publishes where the visible slice is; the dialog stays inside it.
+ */
+.is-embedded .cal-dialog {
+  top: var(--dialog-top, 24px);
+  bottom: auto;
+  max-height: var(--dialog-max-height, calc(100% - 48px));
+  margin: 0 auto;
+}
+
+@media (max-width: 760px) {
+  .is-embedded .cal-dialog {
+    top: auto;
+    bottom: var(--sheet-bottom, 0px);
+    height: var(--sheet-height, min(88%, 640px));
+    max-height: none;
+    margin: 0;
   }
 }
 
