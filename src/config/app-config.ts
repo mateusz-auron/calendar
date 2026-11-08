@@ -46,11 +46,11 @@ export interface ConfigDefaults {
 
 export const DEFAULT_CONFIG: AppConfig = {
   initialMonth: undefined,
-  locale: 'en-US',
+  locale: 'pl-PL',
   weekStartsOn: 1,
   theme: 'auto',
   parentOrigin: '*',
-  timeZone: 'UTC',
+  timeZone: 'Europe/Warsaw',
   eventSources: ['demo'],
   google: undefined,
   eventUrl: 'https://www.google.com/',

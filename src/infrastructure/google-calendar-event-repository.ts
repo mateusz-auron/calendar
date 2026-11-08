@@ -25,7 +25,7 @@ export interface GoogleCalendarOptions {
 }
 
 const API_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
-const FIELDS = 'items(id,status,summary,description,htmlLink,start,end),nextPageToken';
+const FIELDS = 'items(id,status,summary,description,location,htmlLink,start,end),nextPageToken';
 const MAX_PAGES = 10;
 
 interface GoogleEventsPage {
@@ -100,6 +100,7 @@ function parseGoogleEvent(v: unknown): RawEvent | undefined {
       status: str(v.status),
       title: str(v.summary),
       description: str(v.description),
+      location: str(v.location),
       url: str(v.htmlLink),
       start: parseRawTime(v.start),
       end: parseRawTime(v.end),

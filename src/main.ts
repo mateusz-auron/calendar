@@ -54,8 +54,9 @@ function bootstrap(): void {
   if (!root) throw new Error('Missing #app root element');
 
   const config = parseConfig(window.location.search, {
-    locale: navigator.language,
-    timeZone: import.meta.env.VITE_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    // The store's language and time zone, not the viewer's (override with ?lang= / ?tz=).
+    locale: import.meta.env.VITE_LOCALE,
+    timeZone: import.meta.env.VITE_TIME_ZONE,
     calendarId: import.meta.env.VITE_GOOGLE_CALENDAR_ID,
     apiKey: import.meta.env.VITE_GOOGLE_API_KEY,
     eventSource: import.meta.env.VITE_EVENT_SOURCE,
@@ -64,7 +65,7 @@ function bootstrap(): void {
   if (config.theme !== 'auto') document.documentElement.dataset.theme = config.theme;
   document.documentElement.lang = config.locale;
 
-  const clock = new SystemClock();
+  const clock = new SystemClock(config.timeZone);
   const service = new CalendarService(createRepository(config), clock, {
     weekStartsOn: config.weekStartsOn,
   });

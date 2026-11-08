@@ -5,8 +5,10 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_CALENDAR_ID?: string;
   /** Browser API key restricted to the Calendar API + your referrers. Public by nature. */
   readonly VITE_GOOGLE_API_KEY?: string;
-  /** Default IANA time zone for placing timed events; defaults to the viewer's. */
+  /** IANA time zone of the store's calendar; defaults to `Europe/Warsaw`. */
   readonly VITE_TIME_ZONE?: string;
+  /** BCP-47 UI locale; defaults to `pl-PL`. */
+  readonly VITE_LOCALE?: string;
   /** `auto` (default) | `google-api` | `ical` | `demo`. */
   readonly VITE_EVENT_SOURCE?: string;
   /** `true` when the build ships an iCal snapshot (`public/events.json`). Set by CI. */

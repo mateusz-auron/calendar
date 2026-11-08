@@ -68,10 +68,12 @@ export function icalToSnapshot(ics: string, options: IcalToSnapshotOptions): Eve
     const suffix = recurrenceId ? `_${occurrenceSuffix(recurrenceId, toInstant)}` : '';
     const url =
       stringProp(item.component, 'url') ?? googleEventUrl(item.uid, suffix, options.calendarId);
+    const location = stringProp(item.component, 'location');
     events.push({
       id: `${item.uid}${suffix}`,
       title: item.summary,
       ...(item.description ? { description: item.description } : {}),
+      ...(location ? { location } : {}),
       ...(url ? { url } : {}),
       start: rawTime(start, startMs),
       end: rawTime(end, endMs),

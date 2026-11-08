@@ -6,6 +6,7 @@ import {
   type PlainDate,
   type TimeOfDay,
 } from '../domain';
+import { parseEventDescription } from './event-description-parser';
 import { toZonedParts } from './zoned-time';
 
 /**
@@ -23,6 +24,7 @@ export interface RawEvent {
   readonly status?: string;
   readonly title?: string;
   readonly description?: string;
+  readonly location?: string;
   readonly url?: string;
   readonly start?: RawEventTime;
   readonly end?: RawEventTime;
@@ -35,49 +37,80 @@ export interface RawEventMappingOptions {
   readonly fallbackUrl: string;
 }
 
+/**
+ * A timed event that ends before this hour on the day after it starts (a
+ * tournament running until 01:00) stays on its first day in the grid.
+ */
+const OVERNIGHT_END_HOUR = 6;
+const MAX_LOCATION_LENGTH = 200;
+
 /** Maps a raw event to the domain model; `undefined` for cancelled or malformed events. */
 export function toCalendarEvent(
   raw: RawEvent,
   options: RawEventMappingOptions,
 ): CalendarEvent | undefined {
   if (raw.status?.toLowerCase() === 'cancelled' || !raw.start) return undefined;
-  const start = resolve(raw.start, 'start', options.timeZone);
+  const start = resolveStart(raw.start, options.timeZone);
   if (!start) return undefined;
-  const end = raw.end ? resolve(raw.end, 'end', options.timeZone) : undefined;
+  const end = raw.end ? resolveEnd(raw.end, start, options.timeZone) : undefined;
 
-  const description = raw.description ? stripHtml(raw.description) : undefined;
+  const { info, notes } = parseEventDescription(raw.description);
+  const location = raw.location?.replace(/\s+/g, ' ').trim().slice(0, MAX_LOCATION_LENGTH);
   return {
     id: raw.id,
-    title: raw.title?.trim() || '(No title)',
+    title: raw.title?.trim() ?? '',
     date: start.date,
-    ...(end && compareDates(end.date, start.date) > 0 ? { endDate: end.date } : {}),
+    ...(end?.lastDay && compareDates(end.lastDay, start.date) > 0 ? { endDate: end.lastDay } : {}),
     ...(start.time ? { startTime: start.time } : {}),
+    ...(end?.time ? { endTime: end.time } : {}),
     url: safeHttpUrl(raw.url) ?? options.fallbackUrl,
-    ...(description ? { description } : {}),
+    ...(location ? { location } : {}),
+    ...(Object.keys(info).length > 0 ? { info } : {}),
+    ...(notes ? { notes } : {}),
   };
 }
 
-/**
- * End times are exclusive: an all-day event ending on `2026-11-12` lasts
- * through the 11th; a timed event ending at 00:00 ends the day before.
- */
-function resolve(
-  time: RawEventTime,
-  edge: 'start' | 'end',
-  timeZone: string,
-): { date: PlainDate; time?: TimeOfDay } | undefined {
+interface ResolvedStart {
+  readonly date: PlainDate;
+  readonly time?: TimeOfDay;
+  readonly ms?: number;
+}
+
+function resolveStart(time: RawEventTime, timeZone: string): ResolvedStart | undefined {
   if (time.date) {
     const date = parseIsoDate(time.date);
-    if (!date) return undefined;
-    return { date: edge === 'end' ? addDays(date, -1) : date };
+    return date ? { date } : undefined;
   }
   if (time.dateTime) {
     const ms = Date.parse(time.dateTime);
     if (Number.isNaN(ms)) return undefined;
-    const parts = toZonedParts(new Date(edge === 'end' ? ms - 1 : ms), timeZone);
-    return edge === 'start' ? parts : { date: parts.date };
+    return { ...toZonedParts(new Date(ms), timeZone), ms };
   }
   return undefined;
+}
+
+/**
+ * End times are exclusive: an all-day event ending on `2026-11-12` lasts
+ * through the 11th; a timed event ending at 00:00 ends the day before, but its
+ * end time is still shown as 00:00.
+ */
+function resolveEnd(
+  time: RawEventTime,
+  start: ResolvedStart,
+  timeZone: string,
+): { lastDay?: PlainDate; time?: TimeOfDay } | undefined {
+  if (time.date) {
+    const date = parseIsoDate(time.date);
+    return date ? { lastDay: addDays(date, -1) } : undefined;
+  }
+  if (!time.dateTime) return undefined;
+  const ms = Date.parse(time.dateTime);
+  if (Number.isNaN(ms) || start.ms === undefined || ms <= start.ms) return undefined;
+  const endTime = toZonedParts(new Date(ms), timeZone).time;
+  const lastDay = toZonedParts(new Date(ms - 1), timeZone).date;
+  const overnight =
+    compareDates(lastDay, addDays(start.date, 1)) === 0 && endTime.hour < OVERNIGHT_END_HOUR;
+  return { lastDay: overnight ? start.date : lastDay, time: endTime };
 }
 
 // ---- Validation helpers (remote data is untrusted) ----
@@ -120,18 +153,4 @@ export function safeHttpUrl(value: string | undefined): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-/** Descriptions may contain HTML; we only ever show them as plain text. */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
 }

@@ -46,6 +46,7 @@ describe('SnapshotEventRepository', () => {
         title: 'Workshop',
         date: plainDate(2026, 11, 12),
         startTime: { hour: 9, minute: 0 },
+        endTime: { hour: 11, minute: 0 },
         url: 'https://www.google.com/calendar/event?eid=abc',
       },
       {

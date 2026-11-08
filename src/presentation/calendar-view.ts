@@ -11,6 +11,8 @@ import {
 import type { CalendarFormatter } from './calendar-formatter';
 import { h } from './dom';
 
+const UNTITLED = '(No title)';
+
 export interface CalendarViewDeps {
   readonly root: HTMLElement;
   readonly service: CalendarService;
@@ -188,7 +190,8 @@ export class CalendarView {
 
   private renderEvent(event: CalendarEvent): HTMLElement {
     const time = event.startTime ? this.deps.formatter.time(event.startTime) : undefined;
-    const label = time ? `${time} ${event.title}` : event.title;
+    const title = event.info?.fullTitle ?? (event.title || UNTITLED);
+    const label = time ? `${time} ${title}` : title;
     return h(
       'a',
       {
@@ -196,11 +199,11 @@ export class CalendarView {
         href: event.url,
         target: '_blank',
         rel: 'noopener noreferrer',
-        title: event.description ? `${label}\n${event.description}` : label,
+        title: event.notes ? `${label}\n${event.notes}` : label,
         'data-event-id': event.id,
       },
       time ? h('span', { class: 'calendar__event-time' }, time) : null,
-      event.title,
+      title,
     );
   }
 }
