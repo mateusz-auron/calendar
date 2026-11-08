@@ -7,12 +7,14 @@
  *
  * Env: ICAL_URL (required), ICAL_OUTPUT (default public/events.json),
  *      ICAL_PAST_MONTHS (12), ICAL_FUTURE_MONTHS (24),
- *      ICAL_COMPARE_URL (deployed events.json), GITHUB_OUTPUT (set by Actions).
+ *      ICAL_COMPARE_URL (deployed events.json), GITHUB_OUTPUT and
+ *      GITHUB_STEP_SUMMARY (set by Actions; the summary lists description problems).
  */
 import { createHash } from 'node:crypto';
 import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { parseSnapshot, type EventSnapshot } from '../src/infrastructure/event-snapshot';
+import { describeProblems, reportToMarkdown } from './ical/description-report';
 import { calendarIdFromIcalUrl, icalToSnapshot } from './ical/ical-to-snapshot';
 
 const env = process.env;
@@ -62,6 +64,13 @@ async function main(): Promise<void> {
   console.log(
     `Wrote ${String(normalised.events.length)} events (${normalised.range.start} … ${normalised.range.end}) to ${output}`,
   );
+
+  // Tell organisers about typos in event descriptions (docs/event-description.md).
+  const report = describeProblems(normalised.events);
+  for (const w of report.warnings) console.warn(`[opis] ${w.date} ${w.title}: ${w.message}`);
+  if (report.looksFreeBusyOnly)
+    console.warn('Most events have no title: is the calendar free/busy only?');
+  if (env.GITHUB_STEP_SUMMARY) await appendFile(env.GITHUB_STEP_SUMMARY, reportToMarkdown(report));
 
   const compareUrl = env.ICAL_COMPARE_URL?.trim();
   const changed = compareUrl

@@ -1,6 +1,10 @@
-import { parseYearMonth, type Weekday, type YearMonth } from '../domain';
-
-export type Theme = 'auto' | 'light' | 'dark';
+import {
+  parseGameFilter,
+  parseYearMonth,
+  type GameFilter,
+  type Weekday,
+  type YearMonth,
+} from '../domain';
 
 /** Where events come from. */
 export type EventSourceKind = 'google-api' | 'ical' | 'demo';
@@ -16,7 +20,6 @@ export interface AppConfig {
   /** BCP-47 locale for month/weekday/time labels. */
   readonly locale: string;
   readonly weekStartsOn: Weekday;
-  readonly theme: Theme;
   /** Origin allowed to receive iframe resize messages (`*` = any). */
   readonly parentOrigin: string;
   /** IANA time zone used to place timed events on days. */
@@ -30,6 +33,12 @@ export interface AppConfig {
   readonly google: GoogleCalendarConfig | undefined;
   /** Link for demo events and for Google events without their own link. */
   readonly eventUrl: string;
+  /** Game filter on load (`?game=pokemon|lorcana|riftbound|onepiece|other`). */
+  readonly initialFilter: GameFilter;
+  /** Seats shown when a tournament does not say (`VITE_DEFAULT_SEATS`). */
+  readonly defaultSeats: number;
+  /** Store address used when an event has no location (`VITE_DEFAULT_LOCATION`). */
+  readonly defaultLocation: string | undefined;
 }
 
 /** Values that come from the build (env vars) or the browser rather than the URL. */
@@ -42,31 +51,34 @@ export interface ConfigDefaults {
   readonly eventSource?: string | undefined;
   /** True when the build includes an iCal snapshot (`events.json`). */
   readonly icalSnapshot?: boolean | undefined;
+  readonly defaultSeats?: string | undefined;
+  readonly defaultLocation?: string | undefined;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
   initialMonth: undefined,
-  locale: 'en-US',
+  locale: 'pl-PL',
   weekStartsOn: 1,
-  theme: 'auto',
   parentOrigin: '*',
-  timeZone: 'UTC',
+  timeZone: 'Europe/Warsaw',
   eventSources: ['demo'],
   google: undefined,
   eventUrl: 'https://www.google.com/',
+  initialFilter: 'all',
+  defaultSeats: 12,
+  defaultLocation: undefined,
 };
 
 /**
  * Reads configuration from query-string parameters so the host page can
  * customise the widget purely through the iframe `src` attribute, e.g.
- * `?month=2026-03&lang=pl-PL&weekStart=1&theme=dark&tz=Europe/Warsaw&calendar=<id>`.
+ * `?month=2026-03&lang=pl-PL&weekStart=1&tz=Europe/Warsaw&calendar=<id>&game=pokemon`.
  * The API key is build-time only (never a URL parameter).
  */
 export function parseConfig(search: string, defaults: ConfigDefaults = {}): AppConfig {
   const params = new URLSearchParams(search);
   const month = params.get('month');
   const weekStart = params.get('weekStart');
-  const theme = params.get('theme');
   const calendarId = (params.get('calendar') ?? defaults.calendarId)?.trim();
   const apiKey = defaults.apiKey?.trim();
   const google = calendarId && apiKey ? { calendarId, apiKey } : undefined;
@@ -75,7 +87,6 @@ export function parseConfig(search: string, defaults: ConfigDefaults = {}): AppC
     initialMonth: month ? parseYearMonth(month) : undefined,
     locale: safeLocale(params.get('lang') ?? defaults.locale),
     weekStartsOn: weekStart === '0' ? 0 : weekStart === '1' ? 1 : DEFAULT_CONFIG.weekStartsOn,
-    theme: theme === 'light' || theme === 'dark' ? theme : DEFAULT_CONFIG.theme,
     parentOrigin: safeOrigin(params.get('parentOrigin')),
     timeZone: safeTimeZone(params.get('tz') ?? defaults.timeZone),
     eventSources: resolveSources(defaults.eventSource, {
@@ -84,6 +95,9 @@ export function parseConfig(search: string, defaults: ConfigDefaults = {}): AppC
     }),
     google,
     eventUrl: DEFAULT_CONFIG.eventUrl,
+    initialFilter: parseGameFilter(params.get('game')),
+    defaultSeats: safeSeats(defaults.defaultSeats),
+    defaultLocation: defaults.defaultLocation?.trim() || undefined,
   };
 }
 
@@ -102,6 +116,13 @@ function resolveSources(
   if (choice === 'demo') return ['demo'];
   const [first, ...rest] = (['google-api', 'ical'] as const).filter((kind) => available[kind]);
   return first ? [first, ...rest] : ['demo'];
+}
+
+function safeSeats(value: string | undefined): number {
+  const seats = Number(value);
+  return Number.isInteger(seats) && seats >= 1 && seats <= 999
+    ? seats
+    : DEFAULT_CONFIG.defaultSeats;
 }
 
 function safeLocale(locale: string | undefined): string {

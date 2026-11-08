@@ -53,6 +53,7 @@ describe('GoogleCalendarEventRepository', () => {
               id: 'c',
               summary: 'Standup',
               description: '<b>Daily</b> sync &amp; plan',
+              location: '  Room\n 4 ',
               start: { dateTime: '2026-11-20T08:30:00Z' },
               end: { dateTime: '2026-11-20T09:00:00Z' },
             },
@@ -87,14 +88,17 @@ describe('GoogleCalendarEventRepository', () => {
         title: 'Standup',
         date: plainDate(2026, 11, 20),
         startTime: { hour: 9, minute: 30 },
+        endTime: { hour: 10, minute: 0 },
         url: 'https://fallback.example/',
-        description: 'Daily sync & plan',
+        location: 'Room 4',
+        notes: 'Daily sync & plan',
       },
       {
         id: 'd',
         title: 'Late show',
         date: plainDate(2026, 11, 21),
         startTime: { hour: 23, minute: 0 },
+        endTime: { hour: 0, minute: 0 },
         url: 'https://fallback.example/',
       },
     ]);
@@ -121,7 +125,7 @@ describe('GoogleCalendarEventRepository', () => {
 
     const events = await repoWith(fetch).findInRange(NOV);
     expect(events.map((e) => [e.id, e.title, e.url])).toEqual([
-      ['js', '(No title)', 'https://fallback.example/'],
+      ['js', '', 'https://fallback.example/'],
     ]);
   });
 

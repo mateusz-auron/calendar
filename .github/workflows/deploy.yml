@@ -84,6 +84,9 @@ jobs:
           VITE_GOOGLE_API_KEY: ${{ vars.VITE_GOOGLE_API_KEY }}
           VITE_TIME_ZONE: ${{ vars.VITE_TIME_ZONE }}
           VITE_EVENT_SOURCE: ${{ vars.VITE_EVENT_SOURCE }}
+          VITE_LOCALE: ${{ vars.VITE_LOCALE }}
+          VITE_DEFAULT_SEATS: ${{ vars.VITE_DEFAULT_SEATS }}
+          VITE_DEFAULT_LOCATION: ${{ vars.VITE_DEFAULT_LOCATION }}
           VITE_ICAL_SNAPSHOT: ${{ steps.decide.outputs.ical == 'true' }}
 
       - if: steps.decide.outputs.deploy == 'true'

@@ -11,6 +11,9 @@
         font-family: system-ui, sans-serif;
         background: #f6f8fa;
       }
+      .spacer {
+        min-height: 60vh;
+      }
       .host {
         max-width: 900px;
         margin: 0 auto;
@@ -29,6 +32,9 @@
     <div class="host">
       <h1>Host page</h1>
       <p>This page embeds the calendar in an <code>&lt;iframe&gt;</code> and auto-resizes it.</p>
+      <p class="spacer">
+        Scroll down: the event details dialog stays inside the visible part of the calendar.
+      </p>
       <iframe
         id="calendar"
         src="./index.html"
@@ -44,6 +50,15 @@
         const data = event.data;
         if (data && data.type === 'calendar:resize' && typeof data.height === 'number') {
           frame.style.height = data.height + 'px';
+        }
+        // Optional: the details dialog opened while little of the calendar was on screen.
+        if (data && data.type === 'calendar:focus' && typeof data.top === 'number') {
+          const frameTop = frame.getBoundingClientRect().top + window.scrollY;
+          const top = frameTop + data.top - 16;
+          const bottom = frameTop + data.top + (data.height || 0) + 16;
+          if (top < window.scrollY || bottom > window.scrollY + window.innerHeight) {
+            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+          }
         }
       });
     </script>

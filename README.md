@@ -1,20 +1,28 @@
 # Calendar
 
-An interactive month calendar for embedding in other pages with an `<iframe>`. It is a static
-site, deployed to GitHub Pages by GitHub Actions.
+A tournament calendar for a game store, for embedding in other pages with an `<iframe>`. It is a
+static site, deployed to GitHub Pages by GitHub Actions. The UI is in Polish by default.
+
+Organisers add tournaments in Google Calendar and write the details (game, titles, format, entry
+fee, seats, registration and results links) in the event description, one `key: value` per line.
+See **[docs/event-description.md](docs/event-description.md)** (in Polish) for the template.
 
 - **Google Calendar integration**, two ways that can be combined:
   - an **iCal sync**: a scheduled GitHub Actions job turns the calendar's iCal feed into a static
     `events.json`. No API key is needed, and updates appear within about 5–30 minutes;
   - the **Google Calendar API**: called live from the browser with a restricted API key.
-- Supports repeating, timed and multi-day events. Clicking an event opens it in a **new tab**
-  (its Google Calendar page).
-- **Demo data:** used when no calendar is configured. It has one event per month on a
-  pseudo-random day, and the days stay the same across reloads.
+- Month grid with game logos, a **game filter**, and a **details dialog** (bottom sheet on phones)
+  with registration / results buttons, "add to calendar" and directions links.
+- Missing details get defaults: "TBA" format and fee, 12 seats, "Zapisy wkrótce" /
+  "Wyniki wkrótce". Events without a game are shown as generic events.
+- Supports repeating, timed, overnight and multi-day events.
+- **Demo data:** used when no calendar is configured: a weekly tournament schedule that shows
+  every default, the same on every reload.
 - **Iframe-ready:** the widget sends its height to the host page, so the iframe can resize without
   scrollbars.
-- Uses the browser's locale by default; you can set the locale, the first day of the week and the theme through URL parameters.
-- No runtime dependencies (vanilla TypeScript). The bundle is about 6 kB gzipped.
+- Polish by default (`?lang=en` for English); times are shown in the store's time zone.
+- No runtime dependencies (vanilla TypeScript). The script is about 18 kB gzipped; fonts and game
+  logos are self-hosted.
 
 ## Quick start
 
@@ -114,20 +122,21 @@ Variables**. For local development, put them in `.env.local` (copy `.env.example
 | `ICAL_FUTURE_MONTHS`      | A       | Months ahead in the snapshot (default 24)                                                |
 | `VITE_GOOGLE_CALENDAR_ID` | B       | Public calendar ID                                                                       |
 | `VITE_GOOGLE_API_KEY`     | B       | Restricted browser API key                                                               |
-| `VITE_TIME_ZONE`          | A, B    | IANA zone for placing timed events on days, e.g. `Europe/Warsaw` (default: the viewer's) |
+| `VITE_TIME_ZONE`          | A, B    | IANA zone of the store's calendar (default `Europe/Warsaw`)                              |
 | `VITE_EVENT_SOURCE`       | —       | `auto` (default: every configured source, API first) or `ical` / `google-api` / `demo`   |
+| `VITE_LOCALE`             | —       | UI language (default `pl-PL`)                                                            |
+| `VITE_DEFAULT_SEATS`      | —       | Seats shown when a tournament gives none (default 12)                                    |
+| `VITE_DEFAULT_LOCATION`   | —       | Optional. Store name and address for events without a location (else no directions link) |
 
 ### How events are shown
 
-- **Timed events** show their start time. They are placed on days using `tz` /
-  `VITE_TIME_ZONE`, or the viewer's time zone if neither is set.
+- **Timed events** show their time range in `tz` / `VITE_TIME_ZONE` (default `Europe/Warsaw`).
+  A tournament ending after midnight but before 06:00 stays on its first day.
 - **Multi-day events** appear on every day they cover.
-- **Clicking an event:**
-  - API events open their Google Calendar page.
-  - iCal events open the event's `URL` property if it has one. For Google feeds without one, the
-    sync builds a link to the event's Google Calendar page (best effort).
-  - Anything else falls back to `https://www.google.com/`.
-- **Descriptions** are shown as plain-text tooltips.
+- **Clicking an event** opens the details dialog. Its links (registration, results, add to
+  calendar, directions) open in a new tab.
+- **Descriptions** are parsed into tournament fields; any other text is shown as plain text.
+  Problems (unknown game, bad link, …) are listed in the sync job's GitHub Actions summary.
 - **Data already loaded** is cached, so going back and forth doesn't fetch it again.
 - **Errors** (calendar not public, wrong key, missing snapshot, network) show a message with a
   **Retry** button.
@@ -154,7 +163,7 @@ Workflows:
 ```html
 <iframe
   id="calendar"
-  src="https://<user>.github.io/<repo>/?lang=en-US&weekStart=1"
+  src="https://<user>.github.io/<repo>/?parentOrigin=https://your-site.example"
   title="Event calendar"
   style="width:100%; height:640px; border:0"
   loading="lazy"
@@ -167,32 +176,42 @@ Workflows:
   window.addEventListener('message', (event) => {
     if (event.source !== frame.contentWindow) return;
     if (event.data?.type === 'calendar:resize') frame.style.height = `${event.data.height}px`;
+    // Optional: scroll the details dialog into view when it opens near the screen edge.
+    if (event.data?.type === 'calendar:focus') {
+      const top = frame.getBoundingClientRect().top + window.scrollY + event.data.top;
+      window.scrollTo({ top: Math.max(0, top - 16), behavior: 'smooth' });
+    }
   });
 </script>
 ```
 
 If you use `sandbox`, you need both `allow-popups` and `allow-popups-to-escape-sandbox`. Without
-them, clicking an event cannot open the new tab, or the new page opens with the iframe's sandbox
+them, the dialog's registration and results links cannot open a new tab, or the new page opens with the iframe's sandbox
 restrictions. A working example is deployed at `/embed-demo.html` (source:
 `public/embed-demo.html`).
 
 ### URL parameters
 
-| Parameter      | Example                         | Default                    | Description                                            |
-| -------------- | ------------------------------- | -------------------------- | ------------------------------------------------------ |
-| `month`        | `2026-03`                       | current month              | Month shown first                                      |
-| `lang`         | `pl-PL`                         | browser language           | Locale used for month and weekday names                |
-| `weekStart`    | `0` (Sun) / `1` (Mon)           | `1`                        | First day of the week                                  |
-| `theme`        | `light` / `dark`                | system preference          | Colour theme                                           |
-| `parentOrigin` | `https://example.com`           | `*`                        | Target origin for resize `postMessage` (lock it down!) |
-| `tz`           | `Europe/Warsaw`                 | `VITE_TIME_ZONE` or viewer | Time zone used to place timed events on days           |
-| `calendar`     | `abc@group.calendar.google.com` | `VITE_GOOGLE_CALENDAR_ID`  | Show a different public calendar (API source only)     |
+| Parameter      | Example                         | Default                             | Description                                                                  |
+| -------------- | ------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------- |
+| `month`        | `2026-03`                       | current month                       | Month shown first                                                            |
+| `lang`         | `en`                            | `VITE_LOCALE` or `pl-PL`            | UI language (Polish, or English for `en…`)                                   |
+| `weekStart`    | `0` (Sun) / `1` (Mon)           | `1`                                 | First day of the week                                                        |
+| `game`         | `pokemon`                       | all games                           | Initial game filter (`lorcana`, `riftbound`, `onepiece`, `pokemon`, `other`) |
+| `parentOrigin` | `https://example.com`           | `*`                                 | Target origin for `postMessage` (lock it down!)                              |
+| `tz`           | `Europe/Warsaw`                 | `VITE_TIME_ZONE` or `Europe/Warsaw` | Time zone used to place timed events on days                                 |
+| `calendar`     | `abc@group.calendar.google.com` | `VITE_GOOGLE_CALENDAR_ID`           | Show a different public calendar (API source only)                           |
 
-### Resize message contract
+### Message contract
 
 ```ts
 { type: 'calendar:resize', height: number } // CSS pixels, sent on load and on every layout change
+{ type: 'calendar:focus', top: number, height: number } // optional: dialog opened near the edge
 ```
+
+The details dialog always stays inside the part of the iframe that is on screen (measured with an
+`IntersectionObserver`). `calendar:focus` is only a hint: it asks the host to scroll that part of
+the iframe (px from its top) into view when too little of the calendar is visible.
 
 ## Architecture
 

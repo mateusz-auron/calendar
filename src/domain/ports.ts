@@ -16,3 +16,17 @@ export interface EventRepository {
 export interface Clock {
   today(): PlainDate;
 }
+
+/** What an "add to calendar" link describes. */
+export interface CalendarEntry {
+  readonly event: CalendarEvent;
+  readonly title: string;
+  readonly location?: string;
+  readonly details?: string;
+}
+
+/** Port: links to external services (calendar apps, maps), so views hold no URLs. */
+export interface EventLinks {
+  addToCalendarUrl(entry: CalendarEntry): string;
+  directionsUrl(location: string): string;
+}

@@ -52,6 +52,7 @@ DTSTART;TZID=Europe/Warsaw:20261112T180000
 DTEND;TZID=Europe/Warsaw:20261112T193000
 SUMMARY:Tech talk
 DESCRIPTION:Bring a laptop
+LOCATION:Sklep Planszówki\\, ul. Długa 1\\, Kraków
 URL:https://example.com/talk`,
         `UID:fair@example.com
 DTSTART;VALUE=DATE:20261120
@@ -65,6 +66,7 @@ SUMMARY:Book fair`,
         id: 'talk@example.com',
         title: 'Tech talk',
         description: 'Bring a laptop',
+        location: 'Sklep Planszówki, ul. Długa 1, Kraków',
         url: 'https://example.com/talk',
         start: { dateTime: '2026-11-12T17:00:00.000Z' },
         end: { dateTime: '2026-11-12T18:30:00.000Z' },

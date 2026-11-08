@@ -1,0 +1,150 @@
+import { describe, expect, it } from 'vitest';
+import { plainDate, type CalendarEvent, type EventInfo } from '../domain';
+import { buildEventCard, matchesFilter, shortFormatOf } from './event-card';
+
+const TODAY = plainDate(2026, 11, 7);
+
+const event = (info?: EventInfo, extra: Partial<CalendarEvent> = {}): CalendarEvent => ({
+  id: 'e',
+  title: 'Calendar title',
+  date: plainDate(2026, 11, 14),
+  url: 'https://calendar.example/e',
+  ...(info ? { info } : {}),
+  ...extra,
+});
+
+const card = (info?: EventInfo, extra: Partial<CalendarEvent> = {}) =>
+  buildEventCard(event(info, extra), TODAY, { seats: 12 });
+
+describe('buildEventCard – game events', () => {
+  it('applies every default when only the game is given', () => {
+    expect(card({ game: { kind: 'known', id: 'pokemon' } })).toEqual({
+      event: event({ game: { kind: 'known', id: 'pokemon' } }),
+      variant: 'game',
+      gameId: 'pokemon',
+      gameLabel: 'Pokémon TCG',
+      tileTitle: 'Pokémon',
+      title: 'Calendar title',
+      tileFormat: { kind: 'tba' },
+      format: { kind: 'tba' },
+      price: { kind: 'tba' },
+      seats: { kind: 'count', value: 12 },
+      isPast: false,
+      action: { kind: 'register', link: { kind: 'pending' } },
+    });
+  });
+
+  it('uses the provided values', () => {
+    const result = card({
+      game: { kind: 'known', id: 'lorcana' },
+      shortTitle: 'Liga',
+      fullTitle: 'Liga tygodniowa',
+      shortFormat: 'Core',
+      fullFormat: 'Core Constructed · 3 rundy',
+      price: { kind: 'amount', grosze: 1500 },
+      seats: { kind: 'unlimited' },
+      registrationUrl: 'https://example.com/r',
+      resultsUrl: 'https://example.com/w',
+    });
+    expect(result).toMatchObject({
+      tileTitle: 'Liga',
+      title: 'Liga tygodniowa',
+      tileFormat: { kind: 'text', text: 'Core' },
+      format: { kind: 'text', text: 'Core Constructed · 3 rundy' },
+      price: { kind: 'amount', grosze: 1500 },
+      seats: { kind: 'unlimited' },
+      action: { kind: 'register', link: { kind: 'link', url: 'https://example.com/r' } },
+    });
+  });
+
+  it('derives the short format from the full format', () => {
+    const result = card({ game: { kind: 'known', id: 'pokemon' }, fullFormat: 'Standard, Swiss' });
+    expect(result.tileFormat).toEqual({ kind: 'text', text: 'Standard' });
+  });
+
+  it('switches to results once the last day has passed', () => {
+    const past = { date: plainDate(2026, 11, 6) };
+    const info: EventInfo = {
+      game: { kind: 'known', id: 'pokemon' },
+      registrationUrl: 'https://example.com/r',
+    };
+    expect(card(info, past)).toMatchObject({
+      isPast: true,
+      action: { kind: 'results', link: { kind: 'pending' } },
+    });
+    expect(card({ ...info, resultsUrl: 'https://example.com/w' }, past).action).toEqual({
+      kind: 'results',
+      link: { kind: 'link', url: 'https://example.com/w' },
+    });
+  });
+
+  it('still offers registration on the event day and during a multi-day event', () => {
+    const info: EventInfo = { game: { kind: 'known', id: 'pokemon' } };
+    expect(card(info, { date: TODAY }).isPast).toBe(false);
+    expect(
+      card(info, { date: plainDate(2026, 11, 6), endDate: plainDate(2026, 11, 8) }).action?.kind,
+    ).toBe('register');
+  });
+
+  it('treats an unknown game as a game event with a generic look', () => {
+    expect(card({ game: { kind: 'other', name: 'Magic' } })).toMatchObject({
+      variant: 'other-game',
+      gameLabel: 'Magic',
+      tileTitle: 'Magic',
+      price: { kind: 'tba' },
+      seats: { kind: 'count', value: 12 },
+    });
+  });
+});
+
+describe('buildEventCard – generic events', () => {
+  it('shows only title, date and location when nothing else is given', () => {
+    expect(card(undefined, { location: 'Sklep', notes: 'Kawa gratis' })).toEqual({
+      event: event(undefined, { location: 'Sklep', notes: 'Kawa gratis' }),
+      variant: 'generic',
+      tileTitle: 'Calendar title',
+      title: 'Calendar title',
+      location: 'Sklep',
+      notes: 'Kawa gratis',
+      isPast: false,
+    });
+  });
+
+  it('shows provided fields without defaults', () => {
+    const result = card({ price: { kind: 'free' }, resultsUrl: 'https://example.com/w' });
+    expect(result).toMatchObject({ variant: 'generic', price: { kind: 'free' } });
+    expect(result.seats).toBeUndefined();
+    expect(result.format).toBeUndefined();
+    expect(result.action).toBeUndefined(); // results only matter once past
+  });
+
+  it('falls back to the default location', () => {
+    const result = buildEventCard(event(), TODAY, { seats: 12, location: 'Sklep, ul. Długa 1' });
+    expect(result.location).toBe('Sklep, ul. Długa 1');
+  });
+});
+
+describe('shortFormatOf', () => {
+  it.each([
+    ['Standard · Swiss · 4 rundy', 'Standard'],
+    ['Standard | Swiss', 'Standard'],
+    ['Standard, Swiss', 'Standard'],
+    ['Sealed / Draft', 'Sealed'],
+    ['Core – 3 rundy', 'Core'],
+    ['Core-Constructed', 'Core-Constructed'],
+    ['A very long format name that keeps going', 'A very long format name…'],
+  ])('%j → %j', (input, expected) => {
+    expect(shortFormatOf(input)).toBe(expected);
+  });
+});
+
+describe('matchesFilter', () => {
+  it('groups generic and other-game events under "other"', () => {
+    expect(matchesFilter(card(), 'other')).toBe(true);
+    expect(matchesFilter(card({ game: { kind: 'other', name: 'Magic' } }), 'other')).toBe(true);
+    const pokemon = card({ game: { kind: 'known', id: 'pokemon' } });
+    expect(matchesFilter(pokemon, 'pokemon')).toBe(true);
+    expect(matchesFilter(pokemon, 'lorcana')).toBe(false);
+    expect(matchesFilter(pokemon, 'all')).toBe(true);
+  });
+});

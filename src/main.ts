@@ -1,18 +1,20 @@
+import './presentation/fonts.css';
 import './presentation/styles.css';
 
 import { CalendarService } from './application';
 import { parseConfig, type AppConfig, type EventSourceKind } from './config/app-config';
 import type { EventRepository } from './domain';
-import { IframeHeightReporter } from './embed/iframe-height-reporter';
+import { DialogFocusRequester, IframeHeightReporter, VisibleAreaTracker } from './embed';
 import {
   CachingEventRepository,
   DemoEventRepository,
   FallbackEventRepository,
   GoogleCalendarEventRepository,
+  GoogleEventLinks,
   SnapshotEventRepository,
   SystemClock,
 } from './infrastructure';
-import { CalendarFormatter, CalendarView } from './presentation';
+import { CalendarFormatter, CalendarView, messagesFor } from './presentation';
 
 const browserFetch = (input: string, init?: RequestInit) => fetch(input, init);
 
@@ -54,19 +56,25 @@ function bootstrap(): void {
   if (!root) throw new Error('Missing #app root element');
 
   const config = parseConfig(window.location.search, {
-    locale: navigator.language,
-    timeZone: import.meta.env.VITE_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    // The store's language and time zone, not the viewer's (override with ?lang= / ?tz=).
+    locale: import.meta.env.VITE_LOCALE,
+    timeZone: import.meta.env.VITE_TIME_ZONE,
     calendarId: import.meta.env.VITE_GOOGLE_CALENDAR_ID,
     apiKey: import.meta.env.VITE_GOOGLE_API_KEY,
     eventSource: import.meta.env.VITE_EVENT_SOURCE,
     icalSnapshot: import.meta.env.VITE_ICAL_SNAPSHOT === 'true',
+    defaultSeats: import.meta.env.VITE_DEFAULT_SEATS,
+    defaultLocation: import.meta.env.VITE_DEFAULT_LOCATION,
   });
-  if (config.theme !== 'auto') document.documentElement.dataset.theme = config.theme;
   document.documentElement.lang = config.locale;
 
-  const clock = new SystemClock();
+  const clock = new SystemClock(config.timeZone);
   const service = new CalendarService(createRepository(config), clock, {
     weekStartsOn: config.weekStartsOn,
+    cardDefaults: {
+      seats: config.defaultSeats,
+      ...(config.defaultLocation ? { location: config.defaultLocation } : {}),
+    },
   });
   const reporter = new IframeHeightReporter(window, config.parentOrigin);
   if (reporter.isEmbedded) document.documentElement.classList.add('is-embedded');
@@ -76,8 +84,11 @@ function bootstrap(): void {
       root,
       service,
       formatter: new CalendarFormatter(config.locale),
+      messages: messagesFor(config.locale),
+      links: new GoogleEventLinks(config.timeZone),
       clock,
       weekStartsOn: config.weekStartsOn,
+      initialFilter: config.initialFilter,
       onRender: () => {
         reporter.report();
       },
@@ -86,6 +97,17 @@ function bootstrap(): void {
   );
 
   reporter.start();
+  if (reporter.isEmbedded) {
+    // Keep the details dialog inside the part of the iframe that is on screen.
+    const visibleArea = new VisibleAreaTracker(window);
+    visibleArea.start();
+    new DialogFocusRequester(
+      window,
+      view.dialogElement,
+      () => visibleArea.current,
+      config.parentOrigin,
+    ).start();
+  }
   void view.show(view.month);
 }
 

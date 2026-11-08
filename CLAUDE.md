@@ -4,9 +4,14 @@ Guidance for Claude Code (and other AI agents) working in this repository.
 
 ## What this is
 
-A static, embeddable month calendar (vanilla TypeScript + Vite). Other sites load it in an
-`<iframe>`, and GitHub Pages hosts it (deployed by `.github/workflows/deploy.yml`). Clicking an
-event opens its URL in a new tab. Events come from a public Google Calendar in one or both ways:
+A static, embeddable tournament calendar for a game store (vanilla TypeScript + Vite, Polish UI by
+default). Other sites load it in an `<iframe>`, and GitHub Pages hosts it (deployed by
+`.github/workflows/deploy.yml`). Clicking an event opens a details dialog; registration and results
+links in the dialog open in a new tab. Tournament fields (game, titles, formats, price, seats,
+links) are written by organisers in the event description, one `key: value` per line, and parsed
+by `infrastructure/event-description-parser.ts`; defaults ("TBA", 12 seats, "Wyniki wkrótce") are
+applied in `application/event-card.ts`. The plan is in `docs/plans/tournament-design.md`.
+Events come from a public Google Calendar in one or both ways:
 
 - **iCal sync**: a scheduled workflow runs `scripts/sync-ical.ts`, which turns the feed in
   `ICAL_URL` into a static `events.json`. The browser reads it through `SnapshotEventRepository`.
@@ -52,8 +57,12 @@ domain  <-  application  <-  presentation | infrastructure | embed | config  <- 
   never in `src/`). `ical/ical-to-snapshot.ts` is pure and unit-tested; `sync-ical.ts` handles
   I/O and is the command-line entry point. The snapshot format (`EventSnapshot`, `version: 1`) is
   a contract with already-deployed pages: change it only by adding fields, or bump the version.
-- `src/presentation/`: DOM rendering (`CalendarView`), `Intl` formatting and `styles.css`.
-- `src/embed/`: iframe concerns (`IframeHeightReporter`, which sends `postMessage` to the parent).
+- `src/presentation/`: DOM rendering (`CalendarView` orchestrates `month-header`, `game-filter`,
+  `month-grid-view`, `event-tile` and `EventDialog`), copy in `messages.ts` (PL default, EN),
+  `Intl` formatting, game colours/logos in `game-theme.ts`, self-hosted fonts and `styles.css`.
+- `src/embed/`: iframe concerns: `IframeHeightReporter` (`calendar:resize`), `VisibleAreaTracker`
+  (keeps the dialog inside the on-screen part of the auto-height iframe via CSS variables) and
+  `DialogFocusRequester` (optional `calendar:focus` hint to the host).
 - `src/config/`: parses query-string parameters into a typed `AppConfig`.
 - `src/main.ts`: the **composition root**. It is the only file that instantiates concrete classes.
 
@@ -76,11 +85,12 @@ boundary error, move the code to the correct layer or add a port. Do not disable
 - **Secrets**: `VITE_GOOGLE_API_KEY` is a _public_ browser key and ends up in the bundle. It is
   protected by API and HTTP-referrer restrictions in Google Cloud. Never accept the key from a URL
   parameter, and never put a key with broader permissions into `VITE_*` variables.
-- **Event links** must be real `<a href target="_blank" rel="noopener noreferrer">`, not
-  `window.open`. Popup blockers and iframe sandboxes allow anchors, and anchors are accessible.
+- **Event links** (registration, results, add to calendar, directions) must be real
+  `<a href target="_blank" rel="noopener noreferrer">`, not `window.open`. External URLs are built
+  by the `EventLinks` port (`GoogleEventLinks`), never in views. Popup blockers and iframe sandboxes allow anchors, and anchors are accessible.
 - **Iframe**: keep `base: './'` in `vite.config.ts`. Do not add anything that breaks framing (for
-  example a `frame-ancestors` CSP or `X-Frame-Options`). Keep the `calendar:resize` message shape
-  backward compatible, because host pages depend on it.
+  example a `frame-ancestors` CSP or `X-Frame-Options`). Keep the `calendar:resize` and `calendar:focus`
+  message shapes backward compatible, because host pages depend on them.
 - **Accessibility**: use semantic table markup, `aria-current="date"` for today, labelled buttons,
   and visible `:focus-visible` styles.
 - **TypeScript**: strict mode with `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.
@@ -99,7 +109,9 @@ repository's Pages source must be set to **GitHub Actions**, and `main` must be 
 **variables**:
 
 - `ICAL_URL` (and optionally `ICAL_PAST_MONTHS` / `ICAL_FUTURE_MONTHS`);
-- `VITE_GOOGLE_CALENDAR_ID`, `VITE_GOOGLE_API_KEY`, `VITE_TIME_ZONE`, `VITE_EVENT_SOURCE`.
+- `VITE_GOOGLE_CALENDAR_ID`, `VITE_GOOGLE_API_KEY`, `VITE_TIME_ZONE` (default `Europe/Warsaw`),
+  `VITE_EVENT_SOURCE`, `VITE_LOCALE` (default `pl-PL`);
+- `VITE_DEFAULT_SEATS` (default 12) and `VITE_DEFAULT_LOCATION` (the store address).
 
 The workflow also runs every 10 minutes. Those scheduled runs only re-sync the iCal feed, skip
 the checks, and deploy only when the events changed compared with the live `events.json`. A

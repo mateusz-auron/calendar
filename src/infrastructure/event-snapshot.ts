@@ -43,6 +43,7 @@ function parseSnapshotEvent(v: unknown): RawEvent | undefined {
       status: str(v.status),
       title: str(v.title),
       description: str(v.description),
+      location: str(v.location),
       url: str(v.url),
       start: parseRawTime(v.start),
       end: parseRawTime(v.end),

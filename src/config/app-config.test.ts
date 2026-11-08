@@ -9,23 +9,37 @@ describe('parseConfig', () => {
 
   it('reads supported query parameters', () => {
     const config = parseConfig(
-      '?month=2026-03&lang=pl-PL&weekStart=0&theme=dark&tz=Europe/Warsaw&parentOrigin=https://example.com/path',
+      '?month=2026-03&lang=pl-PL&weekStart=0&tz=Europe/Warsaw&parentOrigin=https://example.com/path',
     );
     expect(config).toMatchObject({
       initialMonth: yearMonth(2026, 3),
       locale: 'pl-PL',
       weekStartsOn: 0,
-      theme: 'dark',
       timeZone: 'Europe/Warsaw',
       parentOrigin: 'https://example.com',
     });
   });
 
   it('ignores invalid values', () => {
-    const config = parseConfig(
-      '?month=nope&lang=!!&weekStart=9&theme=neon&tz=Mars/Base&parentOrigin=::',
-    );
+    const config = parseConfig('?month=nope&lang=!!&weekStart=9&tz=Mars/Base&parentOrigin=::');
     expect(config).toEqual(DEFAULT_CONFIG);
+  });
+
+  it('reads the initial game filter', () => {
+    expect(parseConfig('?game=Pokemon').initialFilter).toBe('pokemon');
+    expect(parseConfig('?game=other').initialFilter).toBe('other');
+    expect(parseConfig('?game=magic').initialFilter).toBe('all');
+  });
+
+  it('reads the default seats and location from the build', () => {
+    expect(parseConfig('', { defaultSeats: '16', defaultLocation: ' Sklep ' })).toMatchObject({
+      defaultSeats: 16,
+      defaultLocation: 'Sklep',
+    });
+    for (const bad of ['', '0', '1000', '2.5', 'x']) {
+      expect(parseConfig('', { defaultSeats: bad }).defaultSeats).toBe(12);
+    }
+    expect(parseConfig('', { defaultLocation: '  ' }).defaultLocation).toBeUndefined();
   });
 
   it('uses browser/build defaults when no parameter overrides them', () => {
