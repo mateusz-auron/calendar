@@ -29,6 +29,12 @@ export class DetailsPageClient {
   private readonly onMessage = (event: MessageEvent) => {
     this.handle(event);
   };
+  private readonly blockScroll = (event: Event) => {
+    const target = event.target;
+    const inside = target instanceof Element && target.closest('.cal-dialog__scroll') !== null;
+    if (!inside && event.cancelable) event.preventDefault();
+  };
+  private containing = false;
 
   constructor(
     private readonly win: Window,
@@ -39,8 +45,12 @@ export class DetailsPageClient {
   start(): void {
     if (this.win.parent === this.win) return;
     this.win.addEventListener('message', this.onMessage);
-    this.containScrolling();
     this.post({ type: MSG.hello, role: 'details' });
+  }
+
+  stop(): void {
+    this.win.removeEventListener('message', this.onMessage);
+    this.containScrolling(false);
   }
 
   /** The dialog is open: the host may show the layer. */
@@ -50,6 +60,7 @@ export class DetailsPageClient {
 
   /** The dialog closed (or the request could not be shown): the host hides the layer. */
   closed(eventId: string | undefined): void {
+    this.containScrolling(false);
     this.post({ type: MSG.detailsClosed, ...(eventId !== undefined ? { eventId } : {}) });
   }
 
@@ -76,6 +87,7 @@ export class DetailsPageClient {
         break;
       }
       case MSG.detailsShown:
+        this.containScrolling(true);
         this.handlers.onShown();
         break;
       case MSG.detailsCancel:
@@ -85,17 +97,22 @@ export class DetailsPageClient {
   }
 
   /**
-   * The layer covers the host page; wheel and touch scrolling outside the
-   * dialog's own scroll area must not scroll the page behind it.
+   * While the layer is visible it covers the host page: wheel and touch
+   * scrolling outside the dialog's own scroll area must not scroll the page
+   * behind it. Only while visible: a non-passive touch listener in a hidden
+   * cross-origin iframe can otherwise block scrolling of the whole page.
    */
-  private containScrolling(): void {
-    const block = (event: Event) => {
-      const target = event.target;
-      const inside = target instanceof Element && target.closest('.cal-dialog__scroll') !== null;
-      if (!inside && event.cancelable) event.preventDefault();
-    };
-    this.win.document.addEventListener('wheel', block, { passive: false });
-    this.win.document.addEventListener('touchmove', block, { passive: false });
+  private containScrolling(on: boolean): void {
+    if (on === this.containing) return;
+    this.containing = on;
+    const doc = this.win.document;
+    if (on) {
+      doc.addEventListener('wheel', this.blockScroll, { passive: false });
+      doc.addEventListener('touchmove', this.blockScroll, { passive: false });
+    } else {
+      doc.removeEventListener('wheel', this.blockScroll);
+      doc.removeEventListener('touchmove', this.blockScroll);
+    }
   }
 
   private post(message: Record<string, unknown>): void {

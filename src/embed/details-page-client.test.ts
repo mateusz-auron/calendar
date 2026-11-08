@@ -3,15 +3,19 @@ import { plainDate, yearMonth } from '../domain';
 import { DetailsPageClient } from './details-page-client';
 import { fakeEmbeddedWindow } from './test-window';
 
+const clients: DetailsPageClient[] = [];
+
 function setup() {
   const fake = fakeEmbeddedWindow();
   const handlers = { onRequest: vi.fn(), onPrefetch: vi.fn(), onShown: vi.fn(), onCancel: vi.fn() };
   const client = new DetailsPageClient(fake.win, 'https://host.example', handlers);
   client.start();
+  clients.push(client);
   return { ...fake, client, handlers };
 }
 
 afterEach(() => {
+  for (const client of clients.splice(0)) client.stop();
   document.body.replaceChildren();
 });
 
@@ -55,8 +59,8 @@ describe('DetailsPageClient', () => {
     ]);
   });
 
-  it('stops wheel scrolling outside the dialog from reaching the page behind', () => {
-    setup();
+  it('blocks scrolling outside the dialog only while the layer is shown', () => {
+    const { receive, client } = setup();
     const outside = document.createElement('div');
     const scroller = document.createElement('div');
     scroller.className = 'cal-dialog__scroll';
@@ -69,7 +73,11 @@ describe('DetailsPageClient', () => {
       target.dispatchEvent(event);
       return event.defaultPrevented;
     };
+    expect(wheel(outside)).toBe(false); // hidden layer: never interferes with the page
+    receive({ type: 'calendar:details-shown' });
     expect(wheel(outside)).toBe(true);
     expect(wheel(inner)).toBe(false);
+    client.closed(undefined);
+    expect(wheel(outside)).toBe(false);
   });
 });

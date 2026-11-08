@@ -29,6 +29,19 @@ export class IframeHeightReporter {
     });
     this.observer.observe(this.win.document.body);
     this.report();
+    // Chrome pauses rendering (and ResizeObserver) in off-screen cross-origin iframes, so a
+    // height change while the calendar is below the fold would only reach the host once the
+    // visitor scrolls to it, and the page would jump under their finger. Font loading is not
+    // paused, and it is what changes the height after the first render.
+    const fonts = this.win.document.fonts as FontFaceSet | undefined;
+    if (fonts) {
+      fonts.addEventListener('loadingdone', () => {
+        this.report();
+      });
+      void fonts.ready.then(() => {
+        this.report();
+      });
+    }
   }
 
   stop(): void {

@@ -169,7 +169,6 @@ Workflows:
   src="https://<user>.github.io/<repo>/?parentOrigin=https://your-site.example"
   title="Kalendarz turniejów"
   style="display:block; width:100%; max-width:1200px; height:1300px; margin:0 auto; border:0"
-  loading="lazy"
   sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
 ></iframe>
 <script src="https://<user>.github.io/<repo>/embed.js" defer></script>
@@ -187,6 +186,9 @@ It handles every iframe with the `data-tournament-calendar` attribute:
   `calendar-dialog-open` meanwhile, for example to hide a bottom navigation bar:
   `.calendar-dialog-open .bottom-nav { display: none }`.
 - **Focus:** returns to the event's tile when the details close.
+
+Don't use `loading="lazy"` on the iframe: the calendar would load (and change height) while the
+visitor scrolls to it. `embed.js` switches it to eager loading.
 
 Without `embed.js`, give the iframe a fixed height that fits the tallest month (about 1400 px at
 1200 px wide). The calendar then keeps the dialog inside the visible part of the iframe on its own.

@@ -40,6 +40,10 @@
       return;
     }
 
+    // Load now, not when the visitor scrolls near it: a lazy iframe would load and change its
+    // height under their finger.
+    if (frame.getAttribute('loading') === 'lazy') frame.setAttribute('loading', 'eager');
+
     var layer = null; // the details iframe
     var layerReady = false; // it said hello
     var open = false; // details visible
@@ -98,7 +102,10 @@
       document.body.appendChild(layer);
     }
 
+    // Hidden means visibility:hidden, not only transparent: cross-origin, browsers can still
+    // route touches to a transparent full-screen iframe and the page would not scroll.
     function setLayerVisible(visible) {
+      layer.style.setProperty('visibility', visible ? 'visible' : 'hidden', 'important');
       layer.style.setProperty('opacity', visible ? '1' : '0', 'important');
       layer.style.setProperty('pointer-events', visible ? 'auto' : 'none', 'important');
     }
