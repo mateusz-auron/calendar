@@ -25,8 +25,18 @@ export interface CalendarEntry {
   readonly details?: string;
 }
 
-/** Port: links to external services (calendar apps, maps), so views hold no URLs. */
+/** A link to show as an anchor. */
+export interface ExternalLink {
+  readonly href: string;
+  /** File name when the link saves a file (an `.ics`) instead of opening a page. */
+  readonly download?: string;
+}
+
+/**
+ * Port: links to external services (calendar apps, maps), so views hold no URLs.
+ * On phones they open the native apps; elsewhere they open web pages.
+ */
 export interface EventLinks {
-  addToCalendarUrl(entry: CalendarEntry): string;
-  directionsUrl(location: string): string;
+  addToCalendar(entry: CalendarEntry): ExternalLink;
+  directions(location: string): ExternalLink;
 }

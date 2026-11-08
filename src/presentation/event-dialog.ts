@@ -1,5 +1,5 @@
 import type { EventCard, EventAction } from '../application';
-import type { EventLinks, PlainDate } from '../domain';
+import type { EventLinks, ExternalLink, PlainDate } from '../domain';
 import type { CalendarFormatter } from './calendar-formatter';
 import { h } from './dom';
 import type { EventText } from './event-text';
@@ -283,19 +283,19 @@ export class EventDialog {
       ]
         .filter(Boolean)
         .join('\n');
-      const url = links.addToCalendarUrl({
+      const link = links.addToCalendar({
         event: card.event,
         title,
         ...(card.location ? { location: card.location } : {}),
         ...(details ? { details } : {}),
       });
-      items.push(externalLink('cal-ev__link', url, m.addToCalendar, 'calendar-plus', m));
+      items.push(externalLink('cal-ev__link', link, m.addToCalendar, 'calendar-plus', m));
     }
     if (card.location) {
       items.push(
         externalLink(
           'cal-ev__link',
-          links.directionsUrl(card.location),
+          links.directions(card.location),
           m.directions,
           'navigation',
           m,
@@ -387,14 +387,19 @@ function fact(
   );
 }
 
-/** Real anchors (not window.open): allowed by popup blockers and iframe sandboxes. */
+/**
+ * Real anchors (not window.open): allowed by popup blockers and iframe sandboxes, and the
+ * user's tap lets the browser hand native-app links (`.ics`, `geo:`, Apple Maps) to the app.
+ */
 function externalLink(
   cls: string,
-  href: string,
+  { href, download }: ExternalLink,
   label: string,
   iconName: IconName,
   m: Messages,
 ): HTMLElement {
+  if (download !== undefined)
+    return h('a', { class: cls, href, download }, icon(iconName, 15, 2), label);
   return h(
     'a',
     { class: cls, href, target: '_blank', rel: 'noopener noreferrer' },

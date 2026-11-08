@@ -35,3 +35,23 @@ export function toZonedParts(instant: Date, timeZone: string): ZonedParts {
     time: { hour: (parts.hour ?? 0) % 24, minute: parts.minute ?? 0 },
   };
 }
+
+/** The instant (epoch ms) at which the wall clock in `timeZone` shows `date` `time`. */
+export function zonedToEpochMs(date: PlainDate, time: TimeOfDay, timeZone: string): number {
+  const wall = Date.UTC(date.year, date.month - 1, date.day, time.hour, time.minute);
+  let instant = wall;
+  // Two rounds settle the zone offset, also next to a DST change.
+  for (let round = 0; round < 2; round++) {
+    const seen = toZonedParts(new Date(instant), timeZone);
+    instant +=
+      wall -
+      Date.UTC(
+        seen.date.year,
+        seen.date.month - 1,
+        seen.date.day,
+        seen.time.hour,
+        seen.time.minute,
+      );
+  }
+  return instant;
+}
