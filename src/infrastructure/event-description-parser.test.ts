@@ -4,6 +4,7 @@ import {
   parseEventDescription,
   parsePrice,
   parseSeats,
+  parseVisible,
   toHttpUrl,
 } from './event-description-parser';
 
@@ -246,5 +247,35 @@ describe('toHttpUrl', () => {
     '',
   ])('rejects %j', (input) => {
     expect(toHttpUrl(input)).toBeUndefined();
+  });
+});
+
+describe('parseVisible', () => {
+  it.each(['tak', 'TAK', 'Tak.', 'true', 'yes', '1', 'on', 'widoczne', 'pokaż', 'show'])(
+    '%j → visible',
+    (input) => {
+      expect(parseVisible(input)).toBe(true);
+    },
+  );
+
+  it.each(['nie', 'NIE', 'Nie!', 'false', 'no', '0', 'off', 'ukryte', 'ukryj', 'hidden'])(
+    '%j → hidden',
+    (input) => {
+      expect(parseVisible(input)).toBe(false);
+    },
+  );
+
+  it('keeps the event visible for an unknown value and warns', () => {
+    const warnings: string[] = [];
+    expect(parseVisible('może', warnings)).toBeUndefined();
+    expect(warnings).toHaveLength(1);
+  });
+
+  it('is read from the description under English and Polish names', () => {
+    expect(parseEventDescription('visible: nie').info).toEqual({ visible: false });
+    expect(parseEventDescription('Widoczne: false').info).toEqual({ visible: false });
+    expect(parseEventDescription('Widoczność = tak').info).toEqual({ visible: true });
+    expect(parseEventDescription('pokaż: nie').info).toEqual({ visible: false });
+    expect(parseEventDescription('visible:').info).toEqual({});
   });
 });

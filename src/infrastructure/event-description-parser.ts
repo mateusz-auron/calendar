@@ -35,7 +35,8 @@ type FieldKey =
   | 'price'
   | 'seats'
   | 'tournament_link'
-  | 'results_link';
+  | 'results_link'
+  | 'visible';
 
 const ALIASES: Readonly<Record<FieldKey, readonly string[]>> = {
   game: ['gra'],
@@ -47,6 +48,7 @@ const ALIASES: Readonly<Record<FieldKey, readonly string[]>> = {
   seats: ['miejsca', 'liczba_miejsc', 'ilosc_miejsc'],
   tournament_link: ['zapisy', 'rejestracja', 'registration'],
   results_link: ['wyniki', 'results'],
+  visible: ['widoczne', 'widoczny', 'widocznosc', 'pokaz', 'pokazuj', 'visibility', 'show'],
 };
 
 const KEYS = new Map<string, FieldKey>(
@@ -77,6 +79,39 @@ const FREE_WORDS = new Set([
   'bezplatnie',
   'bezplatne',
   'bezplatny',
+]);
+const VISIBLE_WORDS = new Set([
+  'tak',
+  't',
+  'yes',
+  'y',
+  'true',
+  '1',
+  'on',
+  'widoczne',
+  'widoczny',
+  'pokaz',
+  'pokazuj',
+  'show',
+  'visible',
+  'publiczne',
+  'public',
+]);
+const HIDDEN_WORDS = new Set([
+  'nie',
+  'n',
+  'no',
+  'false',
+  '0',
+  'off',
+  'ukryte',
+  'ukryty',
+  'ukryj',
+  'niewidoczne',
+  'hide',
+  'hidden',
+  'prywatne',
+  'private',
 ]);
 const UNLIMITED_WORDS = new Set([
   'bez limitu',
@@ -132,6 +167,8 @@ export function parseEventDescription(description: string | undefined): ParsedDe
   if (registration) info.registrationUrl = registration;
   const results = parseLink(values.get('results_link'), 'results_link', warnings);
   if (results) info.resultsUrl = results;
+  const visible = parseVisible(get('visible'), warnings);
+  if (visible !== undefined) info.visible = visible;
 
   const noteText = cleanNotes(notes);
   return { info, ...(noteText ? { notes: noteText } : {}), warnings };
@@ -223,6 +260,21 @@ export function parsePrice(value: string | undefined, warnings: string[] = []): 
     return grosze === 0 ? { kind: 'free' } : { kind: 'amount', grosze };
   }
   return { kind: 'text', text: truncate(value, LIMITS.priceText) };
+}
+
+/** `tak` / `nie`, `true` / `false`, `1` / `0`, … Anything else keeps the event visible. */
+export function parseVisible(
+  value: string | undefined,
+  warnings: string[] = [],
+): boolean | undefined {
+  if (!value) return undefined;
+  const word = foldText(value)
+    .trim()
+    .replace(/[.!]+$/, '');
+  if (VISIBLE_WORDS.has(word)) return true;
+  if (HIDDEN_WORDS.has(word)) return false;
+  warnings.push(`Nieznana wartość pola „visible”: „${value}”; wydarzenie pozostaje widoczne.`);
+  return undefined;
 }
 
 export function parseSeats(value: string | undefined, warnings: string[] = []): Seats | undefined {

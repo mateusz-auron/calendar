@@ -101,6 +101,16 @@ describe('toCalendarEvent – content', () => {
     });
   });
 
+  it('skips events the organiser hid with "visible: nie"', () => {
+    expect(
+      map({ start: { date: '2026-11-07' }, description: 'game: Pokemon<br>visible: nie' }),
+    ).toBeUndefined();
+    expect(map({ start: { date: '2026-11-07' }, description: 'visible: tak' })).toMatchObject({
+      info: { visible: true },
+    });
+    expect(map({ start: { date: '2026-11-07' }, description: 'visible: może' })).toBeDefined();
+  });
+
   it('skips cancelled events', () => {
     expect(map({ status: 'CANCELLED', start: { date: '2026-11-07' } })).toBeUndefined();
   });

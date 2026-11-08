@@ -29,4 +29,6 @@ export interface EventInfo {
   readonly seats?: Seats;
   readonly registrationUrl?: string;
   readonly resultsUrl?: string;
+  /** `false` hides the event from the calendar (`visible: nie`); absent means visible. */
+  readonly visible?: boolean;
 }
