@@ -3,7 +3,7 @@ import './presentation/styles.css';
 
 import { CalendarService } from './application';
 import { parseConfig, type AppConfig, type EventSourceKind } from './config/app-config';
-import type { EventRepository } from './domain';
+import type { EventLinks, EventRepository } from './domain';
 import {
   DetailsBridge,
   DetailsPageClient,
@@ -14,9 +14,11 @@ import {
 import {
   CachingEventRepository,
   DemoEventRepository,
+  detectPlatform,
   FallbackEventRepository,
   GoogleCalendarEventRepository,
   GoogleEventLinks,
+  NativeEventLinks,
   SnapshotEventRepository,
   SystemClock,
 } from './infrastructure';
@@ -59,6 +61,13 @@ function createRepository(config: AppConfig): EventRepository {
   return new CachingEventRepository(chain);
 }
 
+/** Google Calendar everywhere; on phones, directions open the native maps app. */
+function createLinks(timeZone: string): EventLinks {
+  const google = new GoogleEventLinks(timeZone);
+  const platform = detectPlatform(navigator);
+  return platform === 'other' ? google : new NativeEventLinks(platform, google);
+}
+
 /**
  * Composition root — the only place that knows concrete implementations.
  */
@@ -91,7 +100,7 @@ function bootstrap(): void {
     service,
     formatter: new CalendarFormatter(config.locale),
     messages: messagesFor(config.locale),
-    links: new GoogleEventLinks(config.timeZone),
+    links: createLinks(config.timeZone),
     clock,
     weekStartsOn: config.weekStartsOn,
     initialFilter: config.initialFilter,

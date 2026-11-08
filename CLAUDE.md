@@ -93,7 +93,8 @@ boundary error, move the code to the correct layer or add a port. Do not disable
   parameter, and never put a key with broader permissions into `VITE_*` variables.
 - **Event links** (registration, results, add to calendar, directions) must be real
   `<a href target="_blank" rel="noopener noreferrer">`, not `window.open`. External URLs are built
-  by the `EventLinks` port (`GoogleEventLinks`), never in views. Popup blockers and iframe sandboxes allow anchors, and anchors are accessible.
+  by the `EventLinks` port, never in views: `GoogleEventLinks`, wrapped on iOS/Android by
+  `NativeEventLinks` (directions via Apple Maps / `geo:`), picked in `main.ts` by `detectPlatform`. Popup blockers and iframe sandboxes allow anchors, and anchors are accessible.
 - **Iframe**: keep `base: './'` in `vite.config.ts`. Do not add anything that breaks framing (for
   example a `frame-ancestors` CSP or `X-Frame-Options`). Keep all `calendar:*` message shapes
   (README, Message contract) backward compatible, because host pages depend on them.

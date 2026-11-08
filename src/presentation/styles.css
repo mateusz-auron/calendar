@@ -1118,6 +1118,38 @@ button.cal-day__num {
   }
 }
 
+/*
+ * Phones: "Październik 2027" next to the month navigation does not fit, and wrapping would move
+ * the navigation under the title for some months only. Keep one row for every month: the year
+ * goes on its own line and the month name shrinks on the narrowest screens. 5.8em is the widest
+ * Polish month name; 215px is the page and card padding, the navigation and the gap.
+ */
+@container (max-width: 480px) {
+  .cal-bar__top {
+    flex-wrap: nowrap;
+  }
+
+  .cal-bar__titles {
+    flex: 1 1 auto;
+  }
+
+  .cal-bar__actions {
+    flex: none;
+  }
+
+  .cal-bar__title {
+    font-size: clamp(14px, calc((100cqi - 215px) / 5.8), 24px);
+    overflow-wrap: anywhere;
+  }
+
+  .cal-bar__year {
+    display: block;
+    margin-top: 2px;
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .cal-dialog {
     width: 100%;

@@ -137,7 +137,8 @@ Variables**. For local development, put them in `.env.local` (copy `.env.example
   A tournament ending after midnight but before 06:00 stays on its first day.
 - **Multi-day events** appear on every day they cover.
 - **Clicking an event** opens the details dialog. Its links (registration, results, add to
-  calendar, directions) open in a new tab.
+  calendar, directions) open in a new tab. On phones, directions open the native maps app
+  (Apple Maps on iOS, a `geo:` link on Android); "add to calendar" is a Google Calendar link.
 - **Descriptions** are parsed into tournament fields; any other text is shown as plain text.
   Problems (unknown game, bad link, …) are listed in the sync job's GitHub Actions summary.
 - **Data already loaded** is cached, so going back and forth doesn't fetch it again.
