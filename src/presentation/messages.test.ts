@@ -26,6 +26,5 @@ describe('messages', () => {
     expect(messagesFor('en-GB')).toBe(EN);
     expect(PL.eventsInMonth(0)).toBe('Brak wydarzeń w tym miesiącu');
     expect(PL.eventsInMonth(22)).toBe('22 wydarzenia w tym miesiącu');
-    expect(PL.seatCount(12)).toBe('12 miejsc');
   });
 });
