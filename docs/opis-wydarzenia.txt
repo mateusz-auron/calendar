@@ -1,0 +1,191 @@
+JAK WYPEŁNIĆ OPIS WYDARZENIA W KALENDARZU GOOGLE
+================================================
+
+Kalendarz turniejów na stronie sklepu pobiera wydarzenia z Kalendarza Google.
+
+Z normalnych pól wydarzenia brane są:
+  - tytuł,
+  - data i godzina (początek i koniec),
+  - miejsce (lokalizacja).
+
+Wszystkie pozostałe informacje wpisujesz w OPISIE wydarzenia,
+każdą w osobnej linii, w postaci:  nazwa pola: wartość
+
+
+1. ZANIM ZACZNIESZ
+------------------
+
+Kalendarz musi być publiczny z opcją "Wyświetlaj wszystkie szczegóły
+wydarzeń" (Ustawienia kalendarza -> Uprawnienia dostępu do wydarzeń).
+Przy opcji "Wyświetlaj tylko informacje o dostępności (ukryj szczegóły)"
+strona nie zobaczy tytułów ani opisów.
+
+
+2. SZABLON DO SKOPIOWANIA
+-------------------------
+
+Skopiuj poniższe linie do opisu wydarzenia i uzupełnij wartości.
+Pole możesz zostawić puste (np. "wyniki:") i uzupełnić później.
+
+gra: Pokemon
+krótki tytuł: League Challenge
+pełny tytuł: Pokémon TCG League Challenge — listopad 2026
+krótki format: Standard
+format: Standard · Swiss · 4 rundy
+wpisowe: 20 zł
+miejsca: 24
+zapisy: https://example.com/zapisy
+wyniki:
+
+Tu możesz dopisać dowolny tekst, np. "Przynieś własne koszulki".
+
+
+3. POLA
+-------
+
+Każde pole ma kilka równoważnych nazw. Wielkość liter i polskie znaki
+nie mają znaczenia ("Krótki tytuł", "KROTKI TYTUL" i "krotki_tytul"
+działają tak samo). Spacja, "-" i "_" w nazwie też są równoważne.
+
+GRA
+  Nazwy:      gra, game
+  Wartości:   Lorcana, Riftbound, One Piece, Pokemon
+              (działa też np. "Disney Lorcana", "Pokémon TCG",
+              "One Piece Card Game", "PTCG", "OPTCG")
+  Pokazuje:   logo gry, kolory, filtr gier
+
+KRÓTKI TYTUŁ
+  Nazwy:      krótki tytuł, tytuł krótki, short_title
+  Wartość:    do 40 znaków
+  Pokazuje:   kafelek w widoku miesiąca
+
+PEŁNY TYTUŁ
+  Nazwy:      pełny tytuł, tytuł, full_title, title
+  Wartość:    do 120 znaków
+  Pokazuje:   nagłówek w oknie szczegółów
+
+KRÓTKI FORMAT
+  Nazwy:      krótki format, short_format
+  Wartość:    do 24 znaków, np. "Standard"
+  Pokazuje:   mała etykieta na kafelku
+
+FORMAT
+  Nazwy:      format, pełny format, full_format
+  Wartość:    do 80 znaków, np. "Standard · Swiss · 4 rundy"
+  Pokazuje:   "Format" w oknie szczegółów
+
+WPISOWE
+  Nazwy:      wpisowe, cena, price, fee
+  Wartości:   20             -> pokaże "20 zł"
+              20 zł, 20zl, 20 PLN
+              20,50 lub 20.50 -> pokaże "20,50 zł"
+              0, za darmo, darmowe, bezpłatnie, free -> "Bezpłatnie"
+              inny tekst (np. "15 zł / 10 zł z kartą") -> pokaże go tak,
+              jak został wpisany
+  Pokazuje:   "Wpisowe" na dole okna szczegółów
+
+MIEJSCA
+  Nazwy:      miejsca, liczba miejsc, ilość miejsc, seats
+  Wartości:   liczba od 1 do 999, np. "24" (tekst po liczbie, np.
+              "24 osoby", jest pomijany)
+              bez limitu, brak limitu -> pokaże "Bez limitu"
+  Pokazuje:   "Liczba miejsc" w oknie szczegółów
+
+ZAPISY
+  Nazwy:      zapisy, rejestracja, tournament_link, registration
+  Wartość:    link zaczynający się od https:// (albo www.)
+  Pokazuje:   przycisk "Zapisz się na turniej" (przed turniejem
+              i w dniu turnieju)
+
+WYNIKI
+  Nazwy:      wyniki, results_link, results
+  Wartość:    link zaczynający się od https:// (albo www.)
+  Pokazuje:   przycisk "Zobacz wyniki" (po turnieju)
+
+Jako separatora możesz użyć ":", "=" albo myślnika ze spacjami:
+  wpisowe: 20     wpisowe = 20     wpisowe – 20
+
+
+4. WARTOŚCI DOMYŚLNE (GDY POLA BRAKUJE LUB JEST BŁĘDNE)
+-------------------------------------------------------
+
+  krótki tytuł  -> nazwa gry, np. "Pokémon"
+  pełny tytuł   -> tytuł wydarzenia z Kalendarza Google
+  format        -> "TBA"
+  krótki format -> pierwsza część formatu (np. "Standard" z
+                   "Standard · Swiss"), a gdy brak formatu: "TBA"
+  wpisowe       -> "TBA"
+  miejsca       -> 12
+  zapisy        -> nieaktywny przycisk "Zapisy wkrótce"
+  wyniki        -> po turnieju nieaktywny przycisk "Wyniki wkrótce"
+  miejsce       -> adres sklepu z ustawień strony (jeśli ustawiony);
+                   w przeciwnym razie miejsce i link "Wyznacz trasę"
+                   są ukryte
+
+
+5. WYDARZENIE BEZ GRY
+---------------------
+
+Jeśli w opisie NIE MA linii "gra:", wydarzenie jest ogólne (np. dzień
+otwarty, sklep nieczynny, premiera). Dostaje neutralne logo i pokazuje
+tylko tytuł, datę, godzinę, miejsce i opis. Inne pola (np. wpisowe)
+pojawią się tylko wtedy, gdy je wpiszesz. Wartości domyślne NIE są
+używane.
+
+Przykład opisu wydarzenia ogólnego:
+
+Wpadnij poznać nasze gry. Kawa i herbata gratis.
+
+Jeśli wpiszesz grę spoza listy (np. "gra: Magic"), wydarzenie dostanie
+neutralne logo i wpisaną nazwę gry, ale wartości domyślne (TBA,
+12 miejsc itd.) działają jak dla zwykłego turnieju.
+
+
+6. DOBRE PRAKTYKI
+-----------------
+
+  - Jedno pole w jednej linii. Jeśli wartość przejdzie do następnej
+    linii, ta druga linia trafi do opisu, a nie do pola.
+
+  - Wszystko, co nie jest polem, pokazuje się w sekcji "Opis".
+    Np. "Uwaga: przynieś deck" to zwykły tekst, bo "Uwaga" nie jest
+    nazwą pola.
+
+  - Linia z samymi myślnikami (---) kończy pola. Wszystko pod nią to
+    zwykły opis, nawet jeśli wygląda jak pole.
+
+  - Samo słowo "link" NIE jest nazwą pola. Do zapisów użyj "zapisy:".
+
+  - Między nazwą pola a wartością musi być separator (":", "=" albo
+    " – "). Linia "zapisy https://..." bez dwukropka trafi do opisu.
+
+  - Jeśli to samo pole wpiszesz dwa razy, liczy się pierwsza
+    niepusta wartość.
+
+  - Link wklejaj w całości (https://...). Link wstawiony przyciskiem
+    "Wstaw link" z własnym tekstem (np. "Zapisy tutaj") też zadziała.
+
+  - Wydarzenia cykliczne (np. cotygodniowa liga): opis kopiuje się do
+    każdego terminu. Żeby dodać link do wyników tylko jednego terminu,
+    edytuj "tylko to wydarzenie".
+
+  - Turniej kończący się po północy, ale przed 6:00 (np. 18:00–01:00),
+    pokazuje się tylko w dniu rozpoczęcia.
+
+
+7. KIEDY ZMIANY BĘDĄ WIDOCZNE
+-----------------------------
+
+Strona zwykle pokazuje zmiany po 10–40 minutach (jeśli używa
+synchronizacji iCal) albo od razu po odświeżeniu strony (jeśli używa
+Google Calendar API). Można też wymusić synchronizację w GitHub:
+Actions -> Deploy to GitHub Pages -> Run workflow.
+
+
+8. SPRAWDZANIE BŁĘDÓW
+---------------------
+
+Po każdej synchronizacji GitHub Actions wypisuje w podsumowaniu
+przebiegu "Deploy to GitHub Pages" tabelę "Opisy wydarzeń" z problemami,
+np. nieznaną grą, niepoprawnym linkiem albo liczbą miejsc, której nie da
+się odczytać.
