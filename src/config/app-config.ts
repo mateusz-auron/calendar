@@ -14,7 +14,11 @@ export interface GoogleCalendarConfig {
   readonly apiKey: string;
 }
 
+/** `calendar`: the normal widget. `details`: the details layer that embed.js keeps ready. */
+export type AppMode = 'calendar' | 'details';
+
 export interface AppConfig {
+  readonly mode: AppMode;
   /** Month shown on load; `undefined` ⇒ current month. */
   readonly initialMonth: YearMonth | undefined;
   /** BCP-47 locale for month/weekday/time labels. */
@@ -56,6 +60,7 @@ export interface ConfigDefaults {
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
+  mode: 'calendar',
   initialMonth: undefined,
   locale: 'pl-PL',
   weekStartsOn: 1,
@@ -84,6 +89,7 @@ export function parseConfig(search: string, defaults: ConfigDefaults = {}): AppC
   const google = calendarId && apiKey ? { calendarId, apiKey } : undefined;
 
   return {
+    mode: params.get('mode') === 'details' ? 'details' : 'calendar',
     initialMonth: month ? parseYearMonth(month) : undefined,
     locale: safeLocale(params.get('lang') ?? defaults.locale),
     weekStartsOn: weekStart === '0' ? 0 : weekStart === '1' ? 1 : DEFAULT_CONFIG.weekStartsOn,

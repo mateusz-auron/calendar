@@ -25,6 +25,12 @@ describe('parseConfig', () => {
     expect(config).toEqual(DEFAULT_CONFIG);
   });
 
+  it('reads the mode (details layer for embed.js)', () => {
+    expect(parseConfig('').mode).toBe('calendar');
+    expect(parseConfig('?mode=details').mode).toBe('details');
+    expect(parseConfig('?mode=other').mode).toBe('calendar');
+  });
+
   it('reads the initial game filter', () => {
     expect(parseConfig('?game=Pokemon').initialFilter).toBe('pokemon');
     expect(parseConfig('?game=other').initialFilter).toBe('other');

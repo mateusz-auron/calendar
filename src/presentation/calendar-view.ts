@@ -1,6 +1,7 @@
 import type { CalendarService, EventCard, MonthView } from '../application';
 import {
   addMonths,
+  isSameDate,
   isSameYearMonth,
   yearMonthOf,
   type Clock,
@@ -30,8 +31,26 @@ export interface CalendarViewDeps {
   readonly initialFilter?: GameFilter;
   /** Element that holds the details dialog (default: the document body). */
   readonly dialogHost?: HTMLElement;
+  /**
+   * Embedded with a separate details layer (see embed/details-bridge.ts): the
+   * details open there instead of in this page. Returns false to open them here.
+   */
+  readonly detailsDelegate?: (request: DetailsRequest) => boolean;
   /** Called after every render — e.g. to notify an iframe host of size changes. */
   readonly onRender?: () => void;
+  /** After a month was loaded and shown. */
+  readonly onMonthShown?: (month: YearMonth, filter: GameFilter) => void;
+  /** Prev/next in the dialog switched to another month. */
+  readonly onEventNavigated?: (month: YearMonth) => void;
+  readonly onDetailsShown?: () => void;
+  readonly onDetailsClosed?: (eventId: string | undefined) => void;
+}
+
+/** "Show the details of this event (or of all events on this day)". */
+export interface DetailsRequest {
+  readonly date: PlainDate;
+  readonly eventId?: string;
+  readonly filter: GameFilter;
 }
 
 /**
@@ -46,6 +65,8 @@ export class CalendarView {
   private neighbourToken = 0;
   private readonly text: EventText;
   private readonly dialog: EventDialog;
+  /** The tile that asked a details layer to open, for focus when it closes. */
+  private delegatedTrigger: HTMLElement | null = null;
 
   constructor(
     private readonly deps: CalendarViewDeps,
@@ -62,6 +83,8 @@ export class CalendarView {
       links: deps.links,
       onNavigate: (direction) => void this.navigateEvent(direction),
       fallbackFocus: () => deps.root.querySelector<HTMLElement>('.calendar__title'),
+      onShown: () => deps.onDetailsShown?.(),
+      onClosed: (eventId) => deps.onDetailsClosed?.(eventId),
     });
   }
 
@@ -91,6 +114,7 @@ export class CalendarView {
       if (token !== this.renderToken) return; // a newer navigation won the race
       this.view = view;
       this.render(this.renderCalendar(view));
+      this.deps.onMonthShown?.(month, this.filter);
     } catch (error) {
       if (token !== this.renderToken) return;
       console.error('[calendar] failed to load events', error);
@@ -126,7 +150,8 @@ export class CalendarView {
     return this.show(this.current);
   }
 
-  openEvent(card: EventCard, trigger: HTMLElement | null = null): void {
+  openEvent(card: EventCard, trigger: HTMLElement | null = null, here = false): void {
+    if (!here && this.delegate({ date: card.event.date, eventId: card.event.id }, trigger)) return;
     const month = yearMonthOf(card.event.date);
     // "n / N" counts the events of the event's own month, which may not be the month on
     // screen (a December event in January's first row). The visible month is known already.
@@ -142,7 +167,9 @@ export class CalendarView {
 
   openDay(date: PlainDate, cards: readonly EventCard[], trigger: HTMLElement | null = null): void {
     if (cards.length === 1 && cards[0]) this.openEvent(cards[0], trigger);
-    else if (cards.length > 1) this.dialog.openDay(date, cards, trigger);
+    else if (cards.length > 1 && !this.delegate({ date }, trigger)) {
+      this.dialog.openDay(date, cards, trigger);
+    }
   }
 
   /** Prev/next inside the dialog; switches the month behind it when needed. */
@@ -152,8 +179,82 @@ export class CalendarView {
     const target = await this.deps.service.findAdjacentEvent(card.event, direction, this.filter);
     if (!target || this.dialog.event !== card) return;
     const month = yearMonthOf(target.event.date);
-    if (!isSameYearMonth(month, this.current)) await this.show(month);
-    this.openEvent(target);
+    if (!isSameYearMonth(month, this.current)) {
+      await this.show(month);
+      this.deps.onEventNavigated?.(month);
+    }
+    this.openEvent(target, null, true);
+  }
+
+  /**
+   * Opens the details a request names, in this page (details layer, or a
+   * fallback when the layer did not answer). Resolves false if not found.
+   */
+  async openRequest(request: DetailsRequest): Promise<boolean> {
+    const filterChanged = request.filter !== this.filter;
+    this.filter = request.filter;
+    let cell = this.cellOf(request.date);
+    if (!cell || filterChanged) {
+      await this.show(yearMonthOf(request.date));
+      cell = this.cellOf(request.date);
+    }
+    const cards = cell?.events ?? [];
+    if (request.eventId !== undefined) {
+      const card = cards.find((c) => c.event.id === request.eventId);
+      if (!card) return false;
+      this.openEvent(card, null, true);
+      return true;
+    }
+    if (cards.length === 0) return false;
+    if (cards.length === 1 && cards[0]) this.openEvent(cards[0], null, true);
+    else this.dialog.openDay(request.date, cards, null);
+    return true;
+  }
+
+  /** Details layer: load a month ahead of time (ignored while details are open). */
+  async prefetch(month: YearMonth, filter: GameFilter): Promise<void> {
+    if (this.dialog.isOpen) return;
+    this.filter = filter;
+    await this.show(month);
+  }
+
+  closeDetails(): void {
+    this.dialog.close();
+  }
+
+  /** Details layer: move focus into the dialog once the layer is visible. */
+  focusDetails(): void {
+    this.dialog.focusContent();
+  }
+
+  /** After a details layer closed: focus the tile that opened it (or that event's tile). */
+  restoreFocus(eventId: string | undefined): void {
+    const trigger = this.delegatedTrigger;
+    this.delegatedTrigger = null;
+    if (trigger?.isConnected) {
+      trigger.focus();
+      return;
+    }
+    const tiles = eventId
+      ? [...this.deps.root.querySelectorAll<HTMLElement>('[data-event-id]')].filter(
+          (el) => el.dataset.eventId === eventId,
+        )
+      : [];
+    const visible = tiles.find((el) => el.getClientRects().length > 0) ?? tiles[0];
+    (visible ?? this.deps.root.querySelector<HTMLElement>('.calendar__title'))?.focus();
+  }
+
+  private delegate(
+    request: { date: PlainDate; eventId?: string },
+    trigger: HTMLElement | null,
+  ): boolean {
+    if (!this.deps.detailsDelegate?.({ ...request, filter: this.filter })) return false;
+    this.delegatedTrigger = trigger;
+    return true;
+  }
+
+  private cellOf(date: PlainDate) {
+    return this.view?.weeks.flatMap((week) => week.days).find((day) => isSameDate(day.date, date));
   }
 
   /** Position of an event from a neighbouring month (served from the cache in practice). */

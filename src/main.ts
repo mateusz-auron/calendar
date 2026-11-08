@@ -4,7 +4,13 @@ import './presentation/styles.css';
 import { CalendarService } from './application';
 import { parseConfig, type AppConfig, type EventSourceKind } from './config/app-config';
 import type { EventRepository } from './domain';
-import { DialogFocusRequester, IframeHeightReporter, VisibleAreaTracker } from './embed';
+import {
+  DetailsBridge,
+  DetailsPageClient,
+  DialogFocusRequester,
+  IframeHeightReporter,
+  VisibleAreaTracker,
+} from './embed';
 import {
   CachingEventRepository,
   DemoEventRepository,
@@ -14,7 +20,12 @@ import {
   SnapshotEventRepository,
   SystemClock,
 } from './infrastructure';
-import { CalendarFormatter, CalendarView, messagesFor } from './presentation';
+import {
+  CalendarFormatter,
+  CalendarView,
+  messagesFor,
+  type CalendarViewDeps,
+} from './presentation';
 
 const browserFetch = (input: string, init?: RequestInit) => fetch(input, init);
 
@@ -76,19 +87,40 @@ function bootstrap(): void {
       ...(config.defaultLocation ? { location: config.defaultLocation } : {}),
     },
   });
+  const viewDeps = {
+    service,
+    formatter: new CalendarFormatter(config.locale),
+    messages: messagesFor(config.locale),
+    links: new GoogleEventLinks(config.timeZone),
+    clock,
+    weekStartsOn: config.weekStartsOn,
+    initialFilter: config.initialFilter,
+  };
+
+  if (config.mode === 'details') {
+    startDetailsLayer(viewDeps, config.parentOrigin);
+    return;
+  }
+
   const reporter = new IframeHeightReporter(window, config.parentOrigin);
   if (reporter.isEmbedded) document.documentElement.classList.add('is-embedded');
+  // With embed.js on the host page, details open in its full-screen details layer.
+  const bridge = reporter.isEmbedded
+    ? new DetailsBridge(window, config.parentOrigin, {
+        onClosed: (eventId) => {
+          view.restoreFocus(eventId);
+        },
+        onMonth: (month) => void view.show(month),
+        onFallback: (request) => void view.openRequest(request),
+      })
+    : undefined;
 
   const view = new CalendarView(
     {
+      ...viewDeps,
       root,
-      service,
-      formatter: new CalendarFormatter(config.locale),
-      messages: messagesFor(config.locale),
-      links: new GoogleEventLinks(config.timeZone),
-      clock,
-      weekStartsOn: config.weekStartsOn,
-      initialFilter: config.initialFilter,
+      ...(bridge ? { detailsDelegate: (request) => bridge.open(request) } : {}),
+      onMonthShown: (month, filter) => bridge?.monthShown(month, filter),
       onRender: () => {
         reporter.report();
       },
@@ -97,8 +129,9 @@ function bootstrap(): void {
   );
 
   reporter.start();
+  bridge?.start();
   if (reporter.isEmbedded) {
-    // Keep the details dialog inside the part of the iframe that is on screen.
+    // Without a details layer: keep the dialog inside the part of the iframe that is on screen.
     const visibleArea = new VisibleAreaTracker(window);
     visibleArea.start();
     new DialogFocusRequester(
@@ -108,6 +141,45 @@ function bootstrap(): void {
       config.parentOrigin,
     ).start();
   }
+  void view.show(view.month);
+}
+
+/**
+ * The details layer (`?mode=details`): a transparent, full-screen iframe that
+ * public/embed.js keeps ready over the host page. It renders no grid, only the
+ * event dialog with its backdrop, and opens whatever the main calendar asks for.
+ */
+function startDetailsLayer(deps: Omit<CalendarViewDeps, 'root'>, parentOrigin: string): void {
+  document.documentElement.classList.add('is-embedded', 'is-details-layer');
+  const client: DetailsPageClient = new DetailsPageClient(window, parentOrigin, {
+    onRequest: (request) => {
+      void view.openRequest(request).then((found) => {
+        if (!found) client.closed(undefined);
+      });
+    },
+    onPrefetch: (month, filter) => void view.prefetch(month, filter),
+    onShown: () => {
+      view.focusDetails();
+    },
+    onCancel: () => {
+      view.closeDetails();
+    },
+  });
+  const view = new CalendarView({
+    ...deps,
+    // The grid is rendered but never shown; it keeps the month data for prev/next and "n / N".
+    root: document.createElement('div'),
+    onEventNavigated: (month) => {
+      client.navigated(month);
+    },
+    onDetailsShown: () => {
+      client.ready();
+    },
+    onDetailsClosed: (eventId) => {
+      client.closed(eventId);
+    },
+  });
+  client.start();
   void view.show(view.month);
 }
 

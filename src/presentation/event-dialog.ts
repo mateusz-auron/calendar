@@ -18,6 +18,10 @@ export interface EventDialogDeps {
   readonly onNavigate: (direction: 1 | -1) => void;
   /** Where focus goes when the element that opened the dialog is gone. */
   readonly fallbackFocus: () => HTMLElement | null;
+  /** After the dialog became visible. */
+  readonly onShown?: () => void;
+  /** After it closed; `eventId` is the single event it showed (not set for a day list). */
+  readonly onClosed?: (eventId: string | undefined) => void;
 }
 
 export interface Neighbours {
@@ -52,7 +56,7 @@ export class EventDialog {
       this.close();
     });
     this.scroller = h('div', { class: 'cal-dialog__scroll' });
-    this.element = h('dialog', { class: 'cal-dialog' }, close, this.scroller);
+    this.element = h('dialog', { class: 'cal-dialog', tabindex: '-1' }, close, this.scroller);
     // A click on the dialog element itself (not its content) is a click on the backdrop.
     this.element.addEventListener('click', (event) => {
       if (event.target === this.element) this.close();
@@ -127,19 +131,28 @@ export class EventDialog {
     if (this.element.open) this.element.close();
   }
 
+  /**
+   * Moves focus into the dialog, e.g. once an embedding layer is shown. The
+   * dialog itself takes focus (no ring on a button); Tab reaches its controls.
+   */
+  focusContent(): void {
+    this.element.focus();
+  }
+
   private render(articles: HTMLElement[], label: string, trigger: HTMLElement | null): void {
     if (!this.element.open || trigger) this.trigger = trigger ?? this.trigger;
     this.element.setAttribute('aria-label', label);
     this.element.style.transform = '';
     this.scroller.replaceChildren(...articles);
     this.scroller.scrollTop = 0;
-    if (!this.element.open) {
-      this.element.showModal();
-      this.element.ownerDocument.documentElement.classList.add('cal-modal-open');
-    }
+    if (this.element.open) return;
+    this.element.showModal();
+    this.element.ownerDocument.documentElement.classList.add('cal-modal-open');
+    this.deps.onShown?.();
   }
 
   private onClosed(): void {
+    const eventId = this.current?.event.id;
     this.current = undefined;
     this.navButtons = undefined;
     this.positionLabel = undefined;
@@ -148,6 +161,7 @@ export class EventDialog {
     const target = this.trigger?.isConnected ? this.trigger : this.deps.fallbackFocus();
     this.trigger = null;
     target?.focus();
+    this.deps.onClosed?.(eventId);
   }
 
   private renderNav(position?: { index: number; total: number }): HTMLElement {
@@ -328,15 +342,19 @@ export class EventDialog {
       },
       { passive: true },
     );
+    // Not passive: while the sheet follows the finger, the browser must not also turn the
+    // drag into a scroll. A scroll fling would keep going after the sheet closed, and the
+    // next tap on the calendar would only stop it instead of opening an event.
     handle.addEventListener(
       'touchmove',
       (event) => {
         const touch = event.touches[0];
         if (startY === undefined || !touch) return;
+        if (event.cancelable) event.preventDefault();
         dy = Math.max(0, touch.clientY - startY);
         this.element.style.transform = `translateY(${String(dy)}px)`;
       },
-      { passive: true },
+      { passive: false },
     );
     const end = () => {
       if (startY === undefined) return;

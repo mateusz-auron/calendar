@@ -165,33 +165,38 @@ Workflows:
 
 ```html
 <iframe
-  id="calendar"
+  data-tournament-calendar
   src="https://<user>.github.io/<repo>/?parentOrigin=https://your-site.example"
-  title="Event calendar"
-  style="width:100%; height:640px; border:0"
-  loading="lazy"
+  title="Kalendarz turniejów"
+  style="display:block; width:100%; max-width:1200px; height:1300px; margin:0 auto; border:0"
   sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
 ></iframe>
-
-<script>
-  // Optional: auto-resize the iframe to its content.
-  const frame = document.getElementById('calendar');
-  window.addEventListener('message', (event) => {
-    if (event.source !== frame.contentWindow) return;
-    if (event.data?.type === 'calendar:resize') frame.style.height = `${event.data.height}px`;
-    // Optional: scroll the details dialog into view when it opens near the screen edge.
-    if (event.data?.type === 'calendar:focus') {
-      const top = frame.getBoundingClientRect().top + window.scrollY + event.data.top;
-      window.scrollTo({ top: Math.max(0, top - 16), behavior: 'smooth' });
-    }
-  });
-</script>
+<script src="https://<user>.github.io/<repo>/embed.js" defer></script>
 ```
 
+`embed.js` (served next to the calendar, source: `public/embed.js`, no dependencies) is optional.
+It handles every iframe with the `data-tournament-calendar` attribute:
+
+- **Height:** the iframe follows its content, so there is no inner scrollbar or empty space.
+- **Details layer:** event details open in a second, transparent iframe that covers the whole
+  screen (the calendar with `?mode=details`). It is loaded once, stays invisible, and appears only
+  when its dialog is ready, so the backdrop greys the entire page, the dialog sits above the
+  page's own bars, and the phone bottom sheet uses the full width. The calendar iframe never
+  moves and the page's scrolling is not touched, so nothing flickers. `<html>` gets the class
+  `calendar-dialog-open` meanwhile, for example to hide a bottom navigation bar:
+  `.calendar-dialog-open .bottom-nav { display: none }`.
+- **Focus:** returns to the event's tile when the details close.
+
+Don't use `loading="lazy"` on the iframe: the calendar would load (and change height) while the
+visitor scrolls to it. `embed.js` switches it to eager loading.
+
+Without `embed.js`, give the iframe a fixed height that fits the tallest month (about 1400 px at
+1200 px wide). The calendar then keeps the dialog inside the visible part of the iframe on its own.
+
 If you use `sandbox`, you need both `allow-popups` and `allow-popups-to-escape-sandbox`. Without
-them, the dialog's registration and results links cannot open a new tab, or the new page opens with the iframe's sandbox
-restrictions. A working example is deployed at `/embed-demo.html` (source:
-`public/embed-demo.html`).
+them, the dialog's registration and results links cannot open a new tab, or the new page opens
+with the iframe's sandbox restrictions. A working example is deployed at `/embed-demo.html`
+(source: `public/embed-demo.html`).
 
 ### URL parameters
 
@@ -207,14 +212,40 @@ restrictions. A working example is deployed at `/embed-demo.html` (source:
 
 ### Message contract
 
+`embed.js` implements all of this; you only need it to write your own host script. The calendar
+is the `data-tournament-calendar` iframe; the details layer is the same page with `?mode=details`.
+
 ```ts
-{ type: 'calendar:resize', height: number } // CSS pixels, sent on load and on every layout change
-{ type: 'calendar:focus', top: number, height: number } // optional: dialog opened near the edge
+// calendar → host
+{ type: 'calendar:resize', height: number } // CSS px, on load and on every layout change
+{ type: 'calendar:focus', top: number, height: number } // no details layer: dialog near the edge
+{ type: 'calendar:hello' } // started: answer with calendar:host once a details layer exists
+{ type: 'calendar:month', month: 'YYYY-MM', filter: string } // month on screen (for prefetching)
+{ type: 'calendar:details', date: 'YYYY-MM-DD', eventId?: string, filter: string } // open details
+
+// host → calendar
+{ type: 'calendar:host', details: true } // a details layer exists (requests wait until it loaded)
+{ type: 'calendar:details-closed', eventId?: string } // layer closed: restore focus
+{ type: 'calendar:month', month: 'YYYY-MM' } // prev/next in the layer moved to another month
+{ type: 'calendar:details-fallback', request: { date, eventId?, filter } } // open it yourself
+
+// details layer → host
+{ type: 'calendar:hello', role: 'details' } // loaded
+{ type: 'calendar:details-ready' } // dialog open: show the layer
+{ type: 'calendar:details-closed', eventId?: string } // dialog closed: hide the layer
+{ type: 'calendar:month', month: 'YYYY-MM' } // prev/next moved to another month
+
+// host → details layer
+{ type: 'calendar:details', … } // forwarded from the calendar
+{ type: 'calendar:month', month, filter } // forwarded: load ahead of time
+{ type: 'calendar:details-shown' } // layer visible: take focus
+{ type: 'calendar:details-cancel' } // too late, the calendar opened the details itself
 ```
 
-The details dialog always stays inside the part of the iframe that is on screen (measured with an
-`IntersectionObserver`). `calendar:focus` is only a hint: it asks the host to scroll that part of
-the iframe (px from its top) into view when too little of the calendar is visible.
+Without `calendar:host` the calendar opens the details inside its own iframe and keeps the dialog
+in the part of the iframe that is on screen (measured with an `IntersectionObserver`);
+`calendar:focus` is then only a hint to scroll that part into view. Both pages accept messages
+only from their parent window and, when `parentOrigin` is set, only from that origin.
 
 ## Architecture
 

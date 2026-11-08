@@ -626,6 +626,10 @@ button.cal-day__num {
   flex-direction: column;
 }
 
+.cal-dialog:focus {
+  outline: none;
+}
+
 .cal-dialog::backdrop {
   background: var(--c-backdrop);
 }
@@ -1118,9 +1122,13 @@ button.cal-day__num {
   .cal-dialog {
     width: 100%;
     max-width: none;
-    height: min(88dvh, 640px);
-    max-height: 92dvh;
-    margin: auto 0 0;
+    /* As tall as its content; it only scrolls when the details do not fit on the screen.
+       top: auto, because a modal <dialog> is pinned to the top and bottom by default. */
+    top: auto;
+    bottom: 0;
+    height: auto;
+    max-height: calc(100dvh - 16px);
+    margin: 0;
     border-radius: 22px 22px 0 0;
   }
 
@@ -1139,6 +1147,11 @@ button.cal-day__num {
 
   .cal-ev__body {
     padding: 18px 20px 20px;
+  }
+
+  .cal-ev__banner {
+    height: 120px;
+    padding: 20px 64px;
   }
 
   /* Facts as one grouped list: full-width rows, so long formats are not squeezed. */
@@ -1172,11 +1185,63 @@ button.cal-day__num {
   }
 }
 
+/* Short phone screens (e.g. 390×664 with the browser toolbars showing): a compact sheet,
+   so the whole details still fit without scrolling. */
+@media (max-width: 760px) and (max-height: 760px) {
+  .cal-ev__banner {
+    height: 80px;
+    padding: 20px 64px 8px;
+  }
+
+  .cal-ev__body {
+    gap: 12px;
+    padding: 12px 18px 14px;
+  }
+
+  .cal-ev__title {
+    font-size: 22px;
+  }
+
+  .cal-fact {
+    gap: 10px;
+    padding: 7px 12px;
+  }
+
+  .cal-fact__icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .cal-fact dd {
+    font-size: 14px;
+  }
+
+  .cal-ev__links {
+    margin-top: -4px;
+  }
+
+  .cal-ev__link {
+    padding: 2px 0;
+  }
+
+  .cal-ev__foot {
+    padding: 10px 18px 12px;
+  }
+
+  .cal-cta {
+    height: 46px;
+  }
+
+  .cal-ev__fee-value {
+    font-size: 20px;
+  }
+}
+
 /*
  * Embedded: the iframe is as tall as its content, so its viewport is mostly off-screen.
  * embed/visible-area.ts publishes where the visible slice is; the dialog stays inside it.
  */
-.is-embedded .cal-dialog {
+.is-embedded:not(.is-details-layer) .cal-dialog {
   top: var(--dialog-top, 24px);
   bottom: auto;
   max-height: var(--dialog-max-height, calc(100% - 48px));
@@ -1184,13 +1249,27 @@ button.cal-day__num {
 }
 
 @media (max-width: 760px) {
-  .is-embedded .cal-dialog {
+  .is-embedded:not(.is-details-layer) .cal-dialog {
     top: auto;
     bottom: var(--sheet-bottom, 0px);
-    height: var(--sheet-height, min(88%, 640px));
-    max-height: none;
+    height: auto;
+    max-height: var(--sheet-max-height, calc(100% - 32px));
     margin: 0;
   }
+}
+
+/*
+ * Details layer (`?mode=details`, see embed/details-page-client.ts): a transparent full-screen
+ * iframe over the host page that only shows the event dialog and its backdrop.
+ */
+.is-details-layer,
+.is-details-layer body {
+  background: transparent;
+  overscroll-behavior: none;
+}
+
+.is-details-layer #app {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

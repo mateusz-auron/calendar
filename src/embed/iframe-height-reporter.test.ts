@@ -31,4 +31,38 @@ describe('IframeHeightReporter', () => {
       reporter.report();
     }).not.toThrow();
   });
+
+  it('reports again when fonts finish loading, even if ResizeObserver is paused off-screen', async () => {
+    // A ResizeObserver that never fires, like in an off-screen cross-origin iframe.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe = vi.fn();
+        disconnect = vi.fn();
+      },
+    );
+    let height = 962;
+    const parent = { postMessage: vi.fn() };
+    const fonts = Object.assign(new EventTarget(), { ready: Promise.resolve() });
+    const win = {
+      document: { body: { getBoundingClientRect: () => ({ height }) }, fonts },
+    } as unknown as Window;
+    Object.assign(win, { parent });
+
+    const reporter = new IframeHeightReporter(win, '*');
+    reporter.start();
+    expect(parent.postMessage).toHaveBeenLastCalledWith(
+      { type: RESIZE_MESSAGE_TYPE, height: 962 },
+      '*',
+    );
+
+    height = 923; // fonts applied: the text re-wraps
+    fonts.dispatchEvent(new Event('loadingdone'));
+    expect(parent.postMessage).toHaveBeenLastCalledWith(
+      { type: RESIZE_MESSAGE_TYPE, height: 923 },
+      '*',
+    );
+    await Promise.resolve();
+    vi.unstubAllGlobals();
+  });
 });

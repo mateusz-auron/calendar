@@ -7,7 +7,7 @@
     <style>
       body {
         margin: 0;
-        padding: 24px;
+        padding: 24px 24px 96px;
         font-family: system-ui, sans-serif;
         background: #f6f8fa;
       }
@@ -15,52 +15,56 @@
         min-height: 60vh;
       }
       .host {
-        max-width: 900px;
+        max-width: 1200px;
         margin: 0 auto;
       }
       iframe {
         display: block;
         width: 100%;
-        height: 640px; /* initial; updated by postMessage */
+        max-width: 1200px;
+        height: 1300px; /* initial; embed.js follows the content */
+        margin: 0 auto;
         border: 0;
         border-radius: 12px;
         box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+      }
+      /* A typical fixed bottom bar on phones. */
+      .bottom-nav {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1000;
+        display: flex;
+        justify-content: space-around;
+        padding: 16px;
+        background: #1f2328;
+        color: #ffffff;
+      }
+      /* Optional: hide it while the calendar's event details are open. */
+      .calendar-dialog-open .bottom-nav {
+        display: none;
       }
     </style>
   </head>
   <body>
     <div class="host">
       <h1>Host page</h1>
-      <p>This page embeds the calendar in an <code>&lt;iframe&gt;</code> and auto-resizes it.</p>
-      <p class="spacer">
-        Scroll down: the event details dialog stays inside the visible part of the calendar.
+      <p>
+        This page embeds the calendar in an <code>&lt;iframe&gt;</code> with <code>embed.js</code>:
+        the iframe follows its content, and event details cover the whole page.
       </p>
+      <p class="spacer">Scroll down to the calendar.</p>
       <iframe
-        id="calendar"
+        data-tournament-calendar
         src="./index.html"
-        title="Event calendar"
-        loading="lazy"
+        title="Kalendarz turniejów"
         sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       ></iframe>
     </div>
-    <script>
-      const frame = document.getElementById('calendar');
-      window.addEventListener('message', (event) => {
-        if (event.source !== frame.contentWindow) return;
-        const data = event.data;
-        if (data && data.type === 'calendar:resize' && typeof data.height === 'number') {
-          frame.style.height = data.height + 'px';
-        }
-        // Optional: the details dialog opened while little of the calendar was on screen.
-        if (data && data.type === 'calendar:focus' && typeof data.top === 'number') {
-          const frameTop = frame.getBoundingClientRect().top + window.scrollY;
-          const top = frameTop + data.top - 16;
-          const bottom = frameTop + data.top + (data.height || 0) + 16;
-          if (top < window.scrollY || bottom > window.scrollY + window.innerHeight) {
-            window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-          }
-        }
-      });
-    </script>
+    <nav class="bottom-nav" aria-label="Host navigation">
+      <span>Home</span><span>Shop</span><span>Events</span><span>Account</span>
+    </nav>
+    <script src="./embed.js" defer></script>
   </body>
 </html>
