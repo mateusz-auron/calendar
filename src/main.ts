@@ -1,3 +1,4 @@
+import './presentation/fonts.css';
 import './presentation/styles.css';
 
 import { CalendarService } from './application';
@@ -9,10 +10,11 @@ import {
   DemoEventRepository,
   FallbackEventRepository,
   GoogleCalendarEventRepository,
+  GoogleEventLinks,
   SnapshotEventRepository,
   SystemClock,
 } from './infrastructure';
-import { CalendarFormatter, CalendarView } from './presentation';
+import { CalendarFormatter, CalendarView, messagesFor } from './presentation';
 
 const browserFetch = (input: string, init?: RequestInit) => fetch(input, init);
 
@@ -83,6 +85,8 @@ function bootstrap(): void {
       root,
       service,
       formatter: new CalendarFormatter(config.locale),
+      messages: messagesFor(config.locale),
+      links: new GoogleEventLinks(config.timeZone),
       clock,
       weekStartsOn: config.weekStartsOn,
       initialFilter: config.initialFilter,

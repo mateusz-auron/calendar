@@ -4,6 +4,7 @@ export * from './event-snapshot';
 export * from './event-source-error';
 export * from './fallback-event-repository';
 export * from './google-calendar-event-repository';
+export * from './google-event-links';
 export * from './raw-event';
 export * from './seeded-random';
 export * from './snapshot-event-repository';
