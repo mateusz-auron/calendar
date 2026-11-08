@@ -34,11 +34,15 @@ export class EventText {
 
   /** "Sobota, 7 listopada · 11:00–16:00" or "Piątek, 11 grudnia – niedziela, 13 grudnia · …". */
   when(event: CalendarEvent): string {
+    return `${this.whenDate(event)} · ${this.time(event)}`;
+  }
+
+  /** The date part of {@link when}. */
+  whenDate(event: CalendarEvent): string {
     const start = this.formatter.weekdayDate(event.date);
-    const range = event.endDate
+    return event.endDate
       ? `${start} – ${this.formatter.weekdayDate(event.endDate).toLocaleLowerCase()}`
       : start;
-    return `${range} · ${this.time(event)}`;
   }
 
   text(value: TextValue): string {
@@ -58,10 +62,9 @@ export class EventText {
     }
   }
 
+  /** "12" (the label "Liczba miejsc" says what the number is), or "Bez limitu". */
   seats(value: Seats): string {
-    return value.kind === 'unlimited'
-      ? this.messages.unlimitedSeats
-      : this.messages.seatCount(value.value);
+    return value.kind === 'unlimited' ? this.messages.unlimitedSeats : String(value.value);
   }
 
   /** Accessible name of a tile: "Pokémon, sobota 7 listopada, 11:00–16:00, Standard — pokaż szczegóły". */

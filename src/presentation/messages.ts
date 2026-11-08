@@ -54,7 +54,6 @@ export interface Messages {
   readonly tba: string;
   readonly free: string;
   readonly unlimitedSeats: string;
-  readonly seatCount: (n: number) => string;
   readonly allDay: string;
   readonly continued: string;
 }
@@ -111,7 +110,6 @@ export const PL: Messages = {
   tba: 'TBA',
   free: 'Bezpłatnie',
   unlimitedSeats: 'Bez limitu',
-  seatCount: (n) => `${String(n)} ${plural(n, 'miejsce', 'miejsca', 'miejsc')}`,
   allDay: 'Cały dzień',
   continued: 'cd.',
 };
@@ -167,7 +165,6 @@ export const EN: Messages = {
   tba: 'TBA',
   free: 'Free',
   unlimitedSeats: 'Unlimited',
-  seatCount: (n) => `${String(n)} ${s(n, 'seat', 'seats')}`,
   allDay: 'All day',
   continued: 'cont.',
 };

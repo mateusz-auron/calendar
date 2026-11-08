@@ -202,7 +202,7 @@ describe('CalendarView – details dialog', () => {
       'TerminSobota, 14 listopada · 11:00–16:00',
       'MiejsceSklep, ul. Długa 1',
       'FormatStandard · Swiss',
-      'Liczba miejsc12 miejsc',
+      'Liczba miejsc12',
     ]);
     expect(dialog.querySelector('.cal-ev__fee-value')?.textContent).toBe('20\u00a0zł');
     const cta = dialog.querySelector<HTMLAnchorElement>('a.cal-cta');

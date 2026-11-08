@@ -188,7 +188,16 @@ export class EventDialog {
     this.enableDragToClose(banner);
 
     const facts: HTMLElement[] = [
-      fact('calendar', m.when, text.when(card.event), true),
+      fact(
+        'calendar',
+        m.when,
+        // Keep "18:00–21:00" together when the line wraps on phones.
+        [
+          `${text.whenDate(card.event)} · `,
+          h('span', { class: 'cal-nowrap' }, text.time(card.event)),
+        ],
+        true,
+      ),
       card.location ? fact('pin', m.where, card.location, true) : null,
       card.format ? fact('layers', m.format, text.text(card.format)) : null,
       card.seats ? fact('users', m.seats, text.seats(card.seats)) : null,
@@ -329,12 +338,22 @@ export class EventDialog {
   }
 }
 
-function fact(iconName: IconName, label: string, value: string, wide = false): HTMLElement {
+function fact(
+  iconName: IconName,
+  label: string,
+  value: string | (string | Node)[],
+  wide = false,
+): HTMLElement {
   return h(
     'div',
     { class: `cal-fact${wide ? ' cal-fact--wide' : ''}` },
     h('span', { class: 'cal-fact__icon', 'aria-hidden': 'true' }, icon(iconName, 20, 2)),
-    h('div', { class: 'cal-fact__text' }, h('dt', {}, label), h('dd', {}, value)),
+    h(
+      'div',
+      { class: 'cal-fact__text' },
+      h('dt', {}, label),
+      h('dd', {}, ...(typeof value === 'string' ? [value] : value)),
+    ),
   );
 }
 
