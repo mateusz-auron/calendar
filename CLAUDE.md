@@ -99,7 +99,9 @@ repository's Pages source must be set to **GitHub Actions**, and `main` must be 
 **variables**:
 
 - `ICAL_URL` (and optionally `ICAL_PAST_MONTHS` / `ICAL_FUTURE_MONTHS`);
-- `VITE_GOOGLE_CALENDAR_ID`, `VITE_GOOGLE_API_KEY`, `VITE_TIME_ZONE`, `VITE_EVENT_SOURCE`.
+- `VITE_GOOGLE_CALENDAR_ID`, `VITE_GOOGLE_API_KEY`, `VITE_TIME_ZONE` (default `Europe/Warsaw`),
+  `VITE_EVENT_SOURCE`, `VITE_LOCALE` (default `pl-PL`);
+- `VITE_DEFAULT_SEATS` (default 12) and `VITE_DEFAULT_LOCATION` (the store address).
 
 The workflow also runs every 10 minutes. Those scheduled runs only re-sync the iCal feed, skip
 the checks, and deploy only when the events changed compared with the live `events.json`. A

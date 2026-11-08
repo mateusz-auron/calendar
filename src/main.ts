@@ -61,6 +61,8 @@ function bootstrap(): void {
     apiKey: import.meta.env.VITE_GOOGLE_API_KEY,
     eventSource: import.meta.env.VITE_EVENT_SOURCE,
     icalSnapshot: import.meta.env.VITE_ICAL_SNAPSHOT === 'true',
+    defaultSeats: import.meta.env.VITE_DEFAULT_SEATS,
+    defaultLocation: import.meta.env.VITE_DEFAULT_LOCATION,
   });
   if (config.theme !== 'auto') document.documentElement.dataset.theme = config.theme;
   document.documentElement.lang = config.locale;
@@ -68,6 +70,10 @@ function bootstrap(): void {
   const clock = new SystemClock(config.timeZone);
   const service = new CalendarService(createRepository(config), clock, {
     weekStartsOn: config.weekStartsOn,
+    cardDefaults: {
+      seats: config.defaultSeats,
+      ...(config.defaultLocation ? { location: config.defaultLocation } : {}),
+    },
   });
   const reporter = new IframeHeightReporter(window, config.parentOrigin);
   if (reporter.isEmbedded) document.documentElement.classList.add('is-embedded');
@@ -79,6 +85,7 @@ function bootstrap(): void {
       formatter: new CalendarFormatter(config.locale),
       clock,
       weekStartsOn: config.weekStartsOn,
+      initialFilter: config.initialFilter,
       onRender: () => {
         reporter.report();
       },

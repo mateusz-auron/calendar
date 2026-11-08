@@ -1,10 +1,10 @@
-import type { CalendarService, DayCell, MonthView } from '../application';
+import type { CalendarService, DayCell, EventCard, MonthView } from '../application';
 import {
   addMonths,
   toIsoString,
   yearMonthOf,
-  type CalendarEvent,
   type Clock,
+  type GameFilter,
   type Weekday,
   type YearMonth,
 } from '../domain';
@@ -19,6 +19,7 @@ export interface CalendarViewDeps {
   readonly formatter: CalendarFormatter;
   readonly clock: Clock;
   readonly weekStartsOn: Weekday;
+  readonly initialFilter?: GameFilter;
   /** Called after every render — e.g. to notify an iframe host of size changes. */
   readonly onRender?: () => void;
 }
@@ -30,6 +31,7 @@ export interface CalendarViewDeps {
  */
 export class CalendarView {
   private current: YearMonth;
+  private filter: GameFilter;
   private renderToken = 0;
 
   constructor(
@@ -37,6 +39,7 @@ export class CalendarView {
     initialMonth?: YearMonth,
   ) {
     this.current = initialMonth ?? yearMonthOf(deps.clock.today());
+    this.filter = deps.initialFilter ?? 'all';
   }
 
   get month(): YearMonth {
@@ -52,7 +55,7 @@ export class CalendarView {
     if (!root.hasChildNodes()) this.render(this.renderStatus(month, 'Loading events…', false));
 
     try {
-      const view = await this.deps.service.getMonthView(month);
+      const view = await this.deps.service.getMonthView(month, this.filter);
       if (token !== this.renderToken) return; // a newer navigation won the race
       this.render(this.renderCalendar(view));
     } catch (error) {
@@ -145,12 +148,12 @@ export class CalendarView {
 
     return h(
       'table',
-      { class: 'calendar__grid', role: 'grid' },
+      { class: 'calendar__grid' },
       h('thead', {}, h('tr', {}, ...headers)),
       h(
         'tbody',
         {},
-        ...view.weeks.map((week) => h('tr', {}, ...week.map((cell) => this.renderDay(cell)))),
+        ...view.weeks.map((week) => h('tr', {}, ...week.days.map((cell) => this.renderDay(cell)))),
       ),
     );
   }
@@ -188,9 +191,10 @@ export class CalendarView {
     );
   }
 
-  private renderEvent(event: CalendarEvent): HTMLElement {
+  private renderEvent(card: EventCard): HTMLElement {
+    const { event } = card;
     const time = event.startTime ? this.deps.formatter.time(event.startTime) : undefined;
-    const title = event.info?.fullTitle ?? (event.title || UNTITLED);
+    const title = card.title || UNTITLED;
     const label = time ? `${time} ${title}` : title;
     return h(
       'a',

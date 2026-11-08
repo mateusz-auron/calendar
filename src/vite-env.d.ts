@@ -9,6 +9,10 @@ interface ImportMetaEnv {
   readonly VITE_TIME_ZONE?: string;
   /** BCP-47 UI locale; defaults to `pl-PL`. */
   readonly VITE_LOCALE?: string;
+  /** Seats shown when a tournament description gives none; defaults to 12. */
+  readonly VITE_DEFAULT_SEATS?: string;
+  /** Store name and address used when an event has no location. */
+  readonly VITE_DEFAULT_LOCATION?: string;
   /** `auto` (default) | `google-api` | `ical` | `demo`. */
   readonly VITE_EVENT_SOURCE?: string;
   /** `true` when the build ships an iCal snapshot (`public/events.json`). Set by CI. */

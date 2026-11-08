@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findGame, gameById, GAME_IDS, isGameId } from './game-catalog';
+import { findGame, gameById, GAME_IDS, isGameId, parseGameFilter } from './game-catalog';
 
 describe('findGame', () => {
   it.each([
@@ -28,5 +28,14 @@ describe('game catalogue', () => {
     expect(isGameId('lorcana')).toBe(true);
     expect(isGameId('magic')).toBe(false);
     expect(GAME_IDS).toHaveLength(4);
+  });
+});
+
+describe('parseGameFilter', () => {
+  it('accepts game ids and "other", and falls back to "all"', () => {
+    expect(parseGameFilter('Pokemon')).toBe('pokemon');
+    expect(parseGameFilter('other')).toBe('other');
+    expect(parseGameFilter('magic')).toBe('all');
+    expect(parseGameFilter(null)).toBe('all');
   });
 });

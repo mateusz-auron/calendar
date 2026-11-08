@@ -28,6 +28,23 @@ describe('parseConfig', () => {
     expect(config).toEqual(DEFAULT_CONFIG);
   });
 
+  it('reads the initial game filter', () => {
+    expect(parseConfig('?game=Pokemon').initialFilter).toBe('pokemon');
+    expect(parseConfig('?game=other').initialFilter).toBe('other');
+    expect(parseConfig('?game=magic').initialFilter).toBe('all');
+  });
+
+  it('reads the default seats and location from the build', () => {
+    expect(parseConfig('', { defaultSeats: '16', defaultLocation: ' Sklep ' })).toMatchObject({
+      defaultSeats: 16,
+      defaultLocation: 'Sklep',
+    });
+    for (const bad of ['', '0', '1000', '2.5', 'x']) {
+      expect(parseConfig('', { defaultSeats: bad }).defaultSeats).toBe(12);
+    }
+    expect(parseConfig('', { defaultLocation: '  ' }).defaultLocation).toBeUndefined();
+  });
+
   it('uses browser/build defaults when no parameter overrides them', () => {
     const config = parseConfig('', { locale: 'de-DE', timeZone: 'America/New_York' });
     expect(config.locale).toBe('de-DE');

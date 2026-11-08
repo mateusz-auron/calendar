@@ -59,3 +59,11 @@ export function findGame(text: string): Game | undefined {
     game.aliases.some((alias) => value === alias || value.startsWith(`${alias} `)),
   );
 }
+
+/** Which events the calendar shows: all, one game, or everything outside the catalogue. */
+export type GameFilter = 'all' | GameId | 'other';
+
+export function parseGameFilter(value: string | null | undefined): GameFilter {
+  const text = value?.trim().toLowerCase() ?? '';
+  return text === 'other' || isGameId(text) ? text : 'all';
+}
