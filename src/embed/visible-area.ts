@@ -13,7 +13,8 @@ export type ObserverFactory = (
 const THRESHOLDS = Array.from({ length: 201 }, (_, i) => i / 200);
 /** Dialog geometry (px), mirrored from the design: never squeeze it below this. */
 export const DIALOG_MIN_HEIGHT = 320;
-const SHEET_MAX_HEIGHT = 640;
+/** Backdrop left visible above a bottom sheet that grows to fit its content. */
+const SHEET_TOP_GAP = 32;
 const EDGE = 12;
 
 /**
@@ -24,7 +25,8 @@ const EDGE = 12;
  * and publishes dialog placement as CSS custom properties on `<html>`:
  *
  * - `--dialog-top`, `--dialog-max-height`: desktop dialog inside the slice;
- * - `--sheet-bottom`, `--sheet-height`: mobile bottom sheet at the slice's bottom.
+ * - `--sheet-bottom`, `--sheet-max-height`: mobile bottom sheet at the slice's bottom; it is as
+ *   tall as its content and only scrolls when the content is taller than the slice.
  */
 export class VisibleAreaTracker {
   private observer: Pick<IntersectionObserver, 'observe' | 'disconnect'> | undefined;
@@ -81,7 +83,7 @@ export interface DialogPlacement {
   readonly 'dialog-top': number;
   readonly 'dialog-max-height': number;
   readonly 'sheet-bottom': number;
-  readonly 'sheet-height': number;
+  readonly 'sheet-max-height': number;
 }
 
 /** Pure placement maths, so the edge cases are unit-testable. */
@@ -93,18 +95,14 @@ export function placeDialog(area: VisibleArea, viewportHeight: number): DialogPl
   const preferredTop = area.top + Math.max(24, visible * 0.12);
   const top = clamp(preferredTop, EDGE, Math.max(EDGE, height - maxHeight - EDGE));
 
-  const sheetHeight = Math.min(
-    SHEET_MAX_HEIGHT,
-    Math.max(DIALOG_MIN_HEIGHT, visible * 0.88),
-    height,
-  );
-  const sheetBottom = clamp(height - area.bottom, 0, height - sheetHeight);
+  const sheetMaxHeight = Math.min(Math.max(DIALOG_MIN_HEIGHT, visible - SHEET_TOP_GAP), height);
+  const sheetBottom = clamp(height - area.bottom, 0, height - sheetMaxHeight);
 
   return {
     'dialog-top': top,
     'dialog-max-height': maxHeight,
     'sheet-bottom': sheetBottom,
-    'sheet-height': sheetHeight,
+    'sheet-max-height': sheetMaxHeight,
   };
 }
 

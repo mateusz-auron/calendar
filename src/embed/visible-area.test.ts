@@ -13,7 +13,7 @@ describe('placeDialog', () => {
       'dialog-top': 696, // 600 + 12 % of 800
       'dialog-max-height': 752,
       'sheet-bottom': 100,
-      'sheet-height': 640,
+      'sheet-max-height': 768, // 800 visible − 32 px of backdrop above the sheet
     });
   });
 
@@ -21,7 +21,7 @@ describe('placeDialog', () => {
     const placement = placeDialog({ top: 1400, bottom: 1500 }, 1500);
     expect(placement['dialog-max-height']).toBe(DIALOG_MIN_HEIGHT);
     expect(placement['dialog-top']).toBe(1500 - DIALOG_MIN_HEIGHT - 12);
-    expect(placement['sheet-height']).toBe(DIALOG_MIN_HEIGHT);
+    expect(placement['sheet-max-height']).toBe(DIALOG_MIN_HEIGHT);
     expect(placement['sheet-bottom']).toBe(0);
   });
 
