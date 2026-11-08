@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # iCal sync. GitHub runs schedules best-effort (often 5–30 min late) and only on the
+  # default branch. Offset from :00, when GitHub's scheduler is busiest.
+  schedule:
+    - cron: '3-59/10 * * * *'
 
 # Least privilege: only what actions/deploy-pages needs.
 permissions:
@@ -18,7 +22,11 @@ concurrency:
 
 jobs:
   build:
+    # Scheduled runs only exist to sync iCal; skip them entirely when it isn't configured.
+    if: github.event_name != 'schedule' || vars.ICAL_URL != ''
     runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -26,22 +34,66 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run check
-      - run: npm run build
+
+      # Code didn't change on a scheduled run, so skip the (already green) checks.
+      - if: github.event_name != 'schedule'
+        run: npm run check
+
+      - id: pages
+        uses: actions/configure-pages@v6
+
+      - id: sync
+        name: Sync iCal feed
+        if: vars.ICAL_URL != ''
+        # On push/manual runs a feed outage must not block deploying code changes.
+        continue-on-error: ${{ github.event_name != 'schedule' }}
+        run: npm run sync:ical
+        env:
+          ICAL_URL: ${{ vars.ICAL_URL }}
+          ICAL_PAST_MONTHS: ${{ vars.ICAL_PAST_MONTHS }}
+          ICAL_FUTURE_MONTHS: ${{ vars.ICAL_FUTURE_MONTHS }}
+          # Scheduled runs compare with the live snapshot and skip no-op deploys.
+          ICAL_COMPARE_URL: ${{ github.event_name == 'schedule' && format('{0}/events.json', steps.pages.outputs.base_url) || '' }}
+
+      - name: Keep the last deployed snapshot if the sync failed
+        if: steps.sync.outcome == 'failure'
+        run: |
+          mkdir -p public
+          curl -fsS "${{ steps.pages.outputs.base_url }}/events.json" -o public/events.json \
+            && echo "::warning::iCal sync failed; redeploying the previous events.json" \
+            || echo "::warning::iCal sync failed and no previous snapshot exists"
+
+      - id: decide
+        name: Decide whether to deploy
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ] || [ "${{ steps.sync.outputs.changed }}" = "true" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "Events unchanged since the last deploy; skipping."
+          fi
+          if [ -f public/events.json ]; then echo "ical=true" >> "$GITHUB_OUTPUT"; fi
+
+      - if: steps.decide.outputs.deploy == 'true'
+        run: npm run build
         env:
           # Repository variables (Settings → Secrets and variables → Actions → Variables).
-          # Unset ⇒ the site falls back to demo events. The API key is a public browser
-          # key (it ships in the bundle); protect it with API + HTTP-referrer restrictions.
+          # Nothing configured ⇒ demo events. The API key is a public browser key (it ships
+          # in the bundle); protect it with API + HTTP-referrer restrictions in Google Cloud.
           VITE_GOOGLE_CALENDAR_ID: ${{ vars.VITE_GOOGLE_CALENDAR_ID }}
           VITE_GOOGLE_API_KEY: ${{ vars.VITE_GOOGLE_API_KEY }}
           VITE_TIME_ZONE: ${{ vars.VITE_TIME_ZONE }}
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+          VITE_EVENT_SOURCE: ${{ vars.VITE_EVENT_SOURCE }}
+          VITE_ICAL_SNAPSHOT: ${{ steps.decide.outputs.ical == 'true' }}
+
+      - if: steps.decide.outputs.deploy == 'true'
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
   deploy:
     needs: build
+    if: needs.build.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

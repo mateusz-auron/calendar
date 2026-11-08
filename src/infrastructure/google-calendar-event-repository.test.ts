@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { dateRange, plainDate } from '../domain';
-import {
-  EventSourceError,
-  GoogleCalendarEventRepository,
-  type FetchFn,
-} from './google-calendar-event-repository';
+import { EventSourceError } from './event-source-error';
+import { GoogleCalendarEventRepository, type FetchFn } from './google-calendar-event-repository';
 
 const NOV = dateRange(plainDate(2026, 10, 26), plainDate(2026, 12, 6));
 

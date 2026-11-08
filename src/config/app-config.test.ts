@@ -52,4 +52,34 @@ describe('parseConfig', () => {
       expect(config.google).toEqual({ calendarId: 'other@x', apiKey: 'k' });
     });
   });
+
+  describe('event sources', () => {
+    const google = { calendarId: 'cal@x', apiKey: 'k' };
+
+    it('uses demo data when nothing is configured', () => {
+      expect(parseConfig('').eventSources).toEqual(['demo']);
+    });
+
+    it('auto-selects configured sources, live API first with iCal as fallback', () => {
+      expect(parseConfig('', { icalSnapshot: true }).eventSources).toEqual(['ical']);
+      expect(parseConfig('', google).eventSources).toEqual(['google-api']);
+      expect(parseConfig('', { ...google, icalSnapshot: true }).eventSources).toEqual([
+        'google-api',
+        'ical',
+      ]);
+    });
+
+    it('can be forced to a single source', () => {
+      const both = { ...google, icalSnapshot: true };
+      expect(parseConfig('', { ...both, eventSource: 'ical' }).eventSources).toEqual(['ical']);
+      expect(parseConfig('', { ...both, eventSource: 'google-api' }).eventSources).toEqual([
+        'google-api',
+      ]);
+      expect(parseConfig('', { ...both, eventSource: 'demo' }).eventSources).toEqual(['demo']);
+    });
+
+    it('falls back to demo when a forced source is not configured', () => {
+      expect(parseConfig('', { eventSource: 'ical' }).eventSources).toEqual(['demo']);
+    });
+  });
 });

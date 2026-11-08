@@ -52,6 +52,7 @@ export default tseslint.config(
   layer('src/presentation/**', ['infrastructure', 'embed', 'config']),
   layer('src/embed/**', ['application', 'infrastructure', 'presentation', 'config']),
   layer('src/config/**', ['application', 'infrastructure', 'presentation', 'embed']),
+  { files: ['scripts/**'], languageOptions: { globals: globals.node } },
   { files: ['**/*.js'], extends: [tseslint.configs.disableTypeChecked] },
   prettier,
 );

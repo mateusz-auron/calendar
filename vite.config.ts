@@ -10,11 +10,11 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/main.ts'],
+      include: ['src/**/*.ts', 'scripts/**/*.ts'],
+      exclude: ['**/*.test.ts', 'src/main.ts', 'scripts/sync-ical.ts'],
     },
   },
 });

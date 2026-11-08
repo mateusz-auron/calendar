@@ -230,3 +230,7 @@ body {
   opacity: 0.6;
   transition: opacity 0.15s;
 }
+
+.calendar__events li + li {
+  margin-top: 2px;
+}

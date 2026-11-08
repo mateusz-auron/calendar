@@ -1,0 +1,9 @@
+{
+  // Build-time Node scripts: Node globals allowed here, never in the browser bundle (src/).
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"]
+  },
+  "include": [".", "../src"]
+}

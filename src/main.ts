@@ -1,28 +1,49 @@
 import './presentation/styles.css';
 
 import { CalendarService } from './application';
-import { parseConfig, type AppConfig } from './config/app-config';
+import { parseConfig, type AppConfig, type EventSourceKind } from './config/app-config';
 import type { EventRepository } from './domain';
 import { IframeHeightReporter } from './embed/iframe-height-reporter';
 import {
   CachingEventRepository,
   DemoEventRepository,
+  FallbackEventRepository,
   GoogleCalendarEventRepository,
+  SnapshotEventRepository,
   SystemClock,
 } from './infrastructure';
 import { CalendarFormatter, CalendarView } from './presentation';
 
-/** Chooses the event source: Google Calendar when configured, demo data otherwise. */
+const browserFetch = (input: string, init?: RequestInit) => fetch(input, init);
+
+function createSource(kind: EventSourceKind, config: AppConfig): EventRepository {
+  const mapping = { timeZone: config.timeZone, fallbackUrl: config.eventUrl, fetch: browserFetch };
+  switch (kind) {
+    case 'google-api':
+      if (!config.google) throw new Error('google-api source selected without credentials');
+      return new GoogleCalendarEventRepository({ ...config.google, ...mapping });
+    case 'ical':
+      // Relative URL: works under any GitHub Pages sub-path.
+      return new SnapshotEventRepository({ url: './events.json', ...mapping });
+    case 'demo':
+      return new DemoEventRepository({ eventUrl: config.eventUrl });
+  }
+}
+
+/**
+ * Builds the event source chain, e.g. Google API → (on failure) iCal snapshot,
+ * wrapped in a cache so month navigation doesn't re-fetch.
+ */
 function createRepository(config: AppConfig): EventRepository {
-  if (!config.google) return new DemoEventRepository({ eventUrl: config.eventUrl });
-  return new CachingEventRepository(
-    new GoogleCalendarEventRepository({
-      ...config.google,
-      timeZone: config.timeZone,
-      fallbackUrl: config.eventUrl,
-      fetch: (input, init) => fetch(input, init),
-    }),
+  const [firstKind, ...fallbackKinds] = config.eventSources;
+  const chain = fallbackKinds.reduce<EventRepository>(
+    (primary, kind) =>
+      new FallbackEventRepository(primary, createSource(kind, config), (error) => {
+        console.warn('[calendar] primary event source failed, using fallback', error);
+      }),
+    createSource(firstKind, config),
   );
+  return new CachingEventRepository(chain);
 }
 
 /**
@@ -37,6 +58,8 @@ function bootstrap(): void {
     timeZone: import.meta.env.VITE_TIME_ZONE || Intl.DateTimeFormat().resolvedOptions().timeZone,
     calendarId: import.meta.env.VITE_GOOGLE_CALENDAR_ID,
     apiKey: import.meta.env.VITE_GOOGLE_API_KEY,
+    eventSource: import.meta.env.VITE_EVENT_SOURCE,
+    icalSnapshot: import.meta.env.VITE_ICAL_SNAPSHOT === 'true',
   });
   if (config.theme !== 'auto') document.documentElement.dataset.theme = config.theme;
   document.documentElement.lang = config.locale;

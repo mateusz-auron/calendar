@@ -3,10 +3,13 @@
 An interactive month calendar for embedding in other pages with an `<iframe>`. It is a static
 site, deployed to GitHub Pages by GitHub Actions.
 
-- **Google Calendar integration:** shows events from a public Google Calendar, including
-  repeating, timed and multi-day events.
-- Events can be clicked and open in a **new tab**. Google events open their Google Calendar page.
-- **Demo data:** used when no Google Calendar is configured. It has one event per month on a
+- **Google Calendar integration**, two ways that can be combined:
+  - an **iCal sync**: a scheduled GitHub Actions job turns the calendar's iCal feed into a static
+    `events.json`. No API key is needed, and updates appear within about 5–30 minutes;
+  - the **Google Calendar API**: called live from the browser with a restricted API key.
+- Supports repeating, timed and multi-day events. Clicking an event opens it in a **new tab**
+  (its Google Calendar page).
+- **Demo data:** used when no calendar is configured. It has one event per month on a
   pseudo-random day, and the days stay the same across reloads.
 - **Iframe-ready:** the widget sends its height to the host page, so the iframe can resize without
   scrollbars.
@@ -22,32 +25,68 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-| Script                  | Purpose                                         |
-| ----------------------- | ----------------------------------------------- |
-| `npm run dev`           | Vite dev server with HMR                        |
-| `npm run build`         | Type-check + production build into `dist/`      |
-| `npm run preview`       | Serve the production build locally              |
-| `npm run test`          | Unit tests (Vitest + happy-dom)                 |
-| `npm run test:coverage` | Tests with V8 coverage report                   |
-| `npm run lint`          | ESLint (strict, type-checked, layer boundaries) |
-| `npm run format`        | Prettier                                        |
-| `npm run check`         | Everything CI runs, in one command              |
+| Script                  | Purpose                                          |
+| ----------------------- | ------------------------------------------------ |
+| `npm run dev`           | Vite dev server with HMR                         |
+| `npm run build`         | Type-check + production build into `dist/`       |
+| `npm run preview`       | Serve the production build locally               |
+| `npm run test`          | Unit tests (Vitest + happy-dom)                  |
+| `npm run test:coverage` | Tests with V8 coverage report                    |
+| `npm run lint`          | ESLint (strict, type-checked, layer boundaries)  |
+| `npm run format`        | Prettier                                         |
+| `npm run check`         | Everything CI runs, in one command               |
+| `npm run sync:ical`     | Download the iCal feed into `public/events.json` |
 
 ## Google Calendar
 
-The calendar reads a **public** Google Calendar through the Google Calendar API v3, directly
-from the visitor's browser. If no calendar is configured, it shows the demo events.
-
-### 1. Make the calendar public and copy its ID
-
-In Google Calendar, open the calendar's **Settings and sharing**:
+Both options need the calendar to be **public**. In Google Calendar, open the calendar's
+**Settings and sharing**:
 
 - Under **Access permissions for events**, tick **Make available to public** and choose
   **See all event details**.
-- Under **Integrate calendar**, copy the **Calendar ID** (for example
-  `abc123@group.calendar.google.com`).
+- Under **Integrate calendar**, copy the **Public address in iCal format** (for option A) or
+  the **Calendar ID** (for option B).
 
-### 2. Create a browser API key
+Never use the _Secret address in iCal format_. Its events would be published in a public file.
+
+|                            | **A. iCal sync** (scheduled)                          | **B. Google Calendar API** (live)         |
+| -------------------------- | ----------------------------------------------------- | ----------------------------------------- |
+| Setup                      | Only the iCal URL                                     | Google Cloud project + restricted API key |
+| Freshness                  | About 5–30 min (GitHub schedule + 10 min Pages cache) | Instant                                   |
+| Visitor requests to Google | None (reads `events.json` from the same site)         | One per month viewed                      |
+| Repeating events           | Expanded at build time (`ical.js`)                    | Expanded by Google                        |
+| `?calendar=` URL parameter | No (one calendar per build)                           | Yes                                       |
+
+Configure both and the site uses the **live API first** and falls back to the iCal snapshot if
+the API fails (bad key, quota, outage). To use only one, set `VITE_EVENT_SOURCE` (see below).
+
+### A. iCal sync
+
+1. Add the repository variable **`ICAL_URL`** with the public iCal address, e.g.
+   `https://calendar.google.com/calendar/ical/abc123%40group.calendar.google.com/public/basic.ics`.
+   Add it under **Settings → Secrets and variables → Actions → Variables**.
+2. Run **Actions → Deploy to GitHub Pages → Run workflow** once. After that, the schedule keeps it
+   up to date.
+
+How the sync works (`.github/workflows/deploy.yml`):
+
+- **Every 10 minutes**, the workflow downloads the feed and expands repeating events (RRULE,
+  EXDATE, moved occurrences, time zones) into `events.json`. The file covers 12 months back and
+  24 months ahead; change this with the `ICAL_PAST_MONTHS` / `ICAL_FUTURE_MONTHS` variables.
+- It **compares the result with the deployed `events.json`** and only builds and deploys when
+  something changed. Scheduled runs also skip lint and tests, because the code didn't change.
+- **If the feed can't be downloaded**, scheduled runs fail without touching the site. Code
+  deploys still go ahead and keep the previously deployed events.
+- **GitHub runs schedules on a best-effort basis**, often 5–30 minutes late, and only on the
+  default branch. In public repositories, GitHub disables schedules after **60 days without a
+  commit**. If that happens, re-enable the workflow in the Actions tab.
+- **Actions minutes:** free and unlimited for public repositories. On private repositories every
+  run uses minutes (about 30–40 per hour at this interval). Lower the cron frequency if needed.
+
+Locally: run `ICAL_URL=<url> npm run sync:ical`, set `VITE_ICAL_SNAPSHOT=true` in `.env.local`,
+then run `npm run dev`.
+
+### B. Google Calendar API
 
 In [Google Cloud Console](https://console.cloud.google.com/):
 
@@ -59,33 +98,39 @@ In [Google Cloud Console](https://console.cloud.google.com/):
    - **API restrictions → Restrict key:** select only **Google Calendar API**.
 
 The key is included in the page's JavaScript, so anyone can see it. That is expected for a
-browser key that only reads public data. The restrictions above stop other sites and other APIs
-from using it. A key works for any public calendar, not only yours. Never use a key that has
-broader permissions.
+browser key that only reads public data. The restrictions stop other sites and other APIs from
+using it. A key can read any public calendar, not only yours. Never use a key that has broader
+permissions.
 
-### 3. Configure
+### Configuration
 
-| Variable                  | Required | Description                                                                        |
-| ------------------------- | -------- | ---------------------------------------------------------------------------------- |
-| `VITE_GOOGLE_CALENDAR_ID` | yes      | Public calendar ID                                                                 |
-| `VITE_GOOGLE_API_KEY`     | yes      | Restricted browser API key                                                         |
-| `VITE_TIME_ZONE`          | no       | IANA zone for placing events on days, e.g. `Europe/Warsaw` (default: the viewer's) |
+Add these as repository **variables** under **Settings → Secrets and variables → Actions →
+Variables**. For local development, put them in `.env.local` (copy `.env.example`).
 
-- **On GitHub:** go to **Settings → Secrets and variables → Actions → Variables** and add these
-  as repository **variables**. The deploy workflow reads them when it builds. Then run the deploy
-  workflow again.
-- **Locally:** copy `.env.example` to `.env.local` (git-ignored) and fill it in.
+| Variable                  | Used by | Description                                                                              |
+| ------------------------- | ------- | ---------------------------------------------------------------------------------------- |
+| `ICAL_URL`                | A       | Public iCal address; enables the scheduled sync                                          |
+| `ICAL_PAST_MONTHS`        | A       | Months of history in the snapshot (default 12)                                           |
+| `ICAL_FUTURE_MONTHS`      | A       | Months ahead in the snapshot (default 24)                                                |
+| `VITE_GOOGLE_CALENDAR_ID` | B       | Public calendar ID                                                                       |
+| `VITE_GOOGLE_API_KEY`     | B       | Restricted browser API key                                                               |
+| `VITE_TIME_ZONE`          | A, B    | IANA zone for placing timed events on days, e.g. `Europe/Warsaw` (default: the viewer's) |
+| `VITE_EVENT_SOURCE`       | —       | `auto` (default: every configured source, API first) or `ical` / `google-api` / `demo`   |
 
-### How Google events are shown
+### How events are shown
 
-- **Repeating events** are expanded by Google (`singleEvents=true`).
 - **Timed events** show their start time. They are placed on days using `tz` /
   `VITE_TIME_ZONE`, or the viewer's time zone if neither is set.
 - **Multi-day events** appear on every day they cover.
-- **Clicking an event** opens its Google Calendar page (`htmlLink`).
+- **Clicking an event:**
+  - API events open their Google Calendar page.
+  - iCal events open the event's `URL` property if it has one. For Google feeds without one, the
+    sync builds a link to the event's Google Calendar page (best effort).
+  - Anything else falls back to `https://www.google.com/`.
 - **Descriptions** are shown as plain-text tooltips.
-- **Months already loaded** are cached, so going back and forth doesn't fetch them again.
-- **Errors** (calendar not public, wrong key, network) show a message with a **Retry** button.
+- **Data already loaded** is cached, so going back and forth doesn't fetch it again.
+- **Errors** (calendar not public, wrong key, missing snapshot, network) show a message with a
+  **Retry** button.
 
 ## Deploying to GitHub Pages
 
@@ -100,8 +145,9 @@ Workflows:
 
 - `.github/workflows/ci.yml` runs format, lint, typecheck, tests (with coverage) and the build on
   every pull request and on every branch except `main`.
-- `.github/workflows/deploy.yml` runs the full check on `main`, builds the site and deploys it
-  with the official `actions/deploy-pages`.
+- `.github/workflows/deploy.yml` runs the full check on `main`, syncs the iCal feed (if
+  configured), builds the site and deploys it with the official `actions/deploy-pages`. Its
+  10-minute schedule only re-syncs the iCal feed and deploys when the events changed.
 
 ## Embedding
 
@@ -132,15 +178,15 @@ restrictions. A working example is deployed at `/embed-demo.html` (source:
 
 ### URL parameters
 
-| Parameter      | Example                         | Default                    | Description                                                 |
-| -------------- | ------------------------------- | -------------------------- | ----------------------------------------------------------- |
-| `month`        | `2026-03`                       | current month              | Month shown first                                           |
-| `lang`         | `pl-PL`                         | browser language           | Locale used for month and weekday names                     |
-| `weekStart`    | `0` (Sun) / `1` (Mon)           | `1`                        | First day of the week                                       |
-| `theme`        | `light` / `dark`                | system preference          | Colour theme                                                |
-| `parentOrigin` | `https://example.com`           | `*`                        | Target origin for resize `postMessage` (lock it down!)      |
-| `tz`           | `Europe/Warsaw`                 | `VITE_TIME_ZONE` or viewer | Time zone used to place timed events on days                |
-| `calendar`     | `abc@group.calendar.google.com` | `VITE_GOOGLE_CALENDAR_ID`  | Show a different public calendar (uses the build's API key) |
+| Parameter      | Example                         | Default                    | Description                                            |
+| -------------- | ------------------------------- | -------------------------- | ------------------------------------------------------ |
+| `month`        | `2026-03`                       | current month              | Month shown first                                      |
+| `lang`         | `pl-PL`                         | browser language           | Locale used for month and weekday names                |
+| `weekStart`    | `0` (Sun) / `1` (Mon)           | `1`                        | First day of the week                                  |
+| `theme`        | `light` / `dark`                | system preference          | Colour theme                                           |
+| `parentOrigin` | `https://example.com`           | `*`                        | Target origin for resize `postMessage` (lock it down!) |
+| `tz`           | `Europe/Warsaw`                 | `VITE_TIME_ZONE` or viewer | Time zone used to place timed events on days           |
+| `calendar`     | `abc@group.calendar.google.com` | `VITE_GOOGLE_CALENDAR_ID`  | Show a different public calendar (API source only)     |
 
 ### Resize message contract
 
@@ -166,6 +212,9 @@ src/
 │   └── calendar-service.ts "get month view" use-case
 ├── infrastructure/  Adapters implementing domain ports.
 │   ├── google-calendar-event-repository.ts  Google Calendar API v3 adapter
+│   ├── snapshot-event-repository.ts         reads the synced iCal snapshot (events.json)
+│   ├── event-snapshot.ts / raw-event.ts     shared snapshot format + raw → domain mapping
+│   ├── fallback-event-repository.ts         decorator: primary source, fallback on failure
 │   ├── caching-event-repository.ts          caching decorator for any repository
 │   ├── demo-event-repository.ts             one seeded-random event per month
 │   ├── zoned-time.ts                        instant → wall-clock date/time in a time zone
@@ -175,19 +224,24 @@ src/
 ├── embed/           Iframe integration (height reporter via postMessage).
 ├── config/          Query-string → typed AppConfig.
 └── main.ts          Composition root: the only place wiring concrete classes.
+
+scripts/             Build-time Node code (never shipped to the browser).
+├── sync-ical.ts            CLI: download feed → public/events.json, change detection
+└── ical/ical-to-snapshot.ts  pure iCal → snapshot conversion (ical.js, RRULE expansion)
 ```
 
 How the SOLID principles show up in the code:
 
 - **S**: each module has one reason to change (grid maths, formatting, rendering, embedding, config).
-- **O/L**: a new data source is another `EventRepository`. Google Calendar was added this way,
-  without changing the domain or the view. Caching is a decorator that wraps any repository.
+- **O/L**: a new data source is another `EventRepository`. The Google API and the iCal snapshot
+  were both added this way, without changing the domain or the view. Caching and fallback are
+  decorators that wrap any repository.
 - **I**: the ports are small (`findInRange`, `today`).
 - **D**: the application layer depends on abstractions. `main.ts` injects the concrete classes.
 
 ### Adding another event source
 
-Implement the port, then choose it in `createRepository()` in `src/main.ts`:
+Implement the port, then add it to `createSource()` in `src/main.ts`:
 
 ```ts
 export class HttpEventRepository implements EventRepository {
@@ -204,5 +258,5 @@ export class HttpEventRepository implements EventRepository {
 ## Tech stack
 
 Vite 8, TypeScript 6 (strict, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`),
-Vitest 5 + happy-dom, ESLint 10 (`typescript-eslint` strict type-checked), Prettier 3,
+ical.js (build time only), Vitest 5 + happy-dom, ESLint 10 (`typescript-eslint` strict type-checked), Prettier 3,
 Dependabot for npm and GitHub Actions.

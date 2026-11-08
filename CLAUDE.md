@@ -6,9 +6,16 @@ Guidance for Claude Code (and other AI agents) working in this repository.
 
 A static, embeddable month calendar (vanilla TypeScript + Vite). Other sites load it in an
 `<iframe>`, and GitHub Pages hosts it (deployed by `.github/workflows/deploy.yml`). Clicking an
-event opens its URL in a new tab. Events come from a public **Google Calendar** (Calendar API v3,
-called from the browser) when `VITE_GOOGLE_CALENDAR_ID` and `VITE_GOOGLE_API_KEY` are set at build
-time. Otherwise the app shows demo data: one event per month, on a seeded random day.
+event opens its URL in a new tab. Events come from a public Google Calendar in one or both ways:
+
+- **iCal sync**: a scheduled workflow runs `scripts/sync-ical.ts`, which turns the feed in
+  `ICAL_URL` into a static `events.json`. The browser reads it through `SnapshotEventRepository`.
+- **Google Calendar API**: called live from the browser when `VITE_GOOGLE_CALENDAR_ID` and
+  `VITE_GOOGLE_API_KEY` are set at build time.
+
+When both are configured, the API is used first and the snapshot is the fallback
+(`FallbackEventRepository`). `VITE_EVENT_SOURCE` can force a single source. With nothing
+configured, the app shows demo data: one event per month, on a seeded random day.
 
 ## Commands
 
@@ -17,6 +24,7 @@ npm install            # setup (Node >= 22.12, see .nvmrc)
 npm run dev            # dev server
 npm run check          # format:check + lint + typecheck + test  (run before every commit)
 npm run build          # production build -> dist/
+ICAL_URL=<feed> npm run sync:ical   # write public/events.json (then VITE_ICAL_SNAPSHOT=true)
 npm run test:watch     # TDD loop
 npx vitest run src/application/month-grid.test.ts   # a single test file
 ```
@@ -36,7 +44,14 @@ domain  <-  application  <-  presentation | infrastructure | embed | config  <- 
 - `src/application/`: use-cases (`CalendarService`) and pure view-model builders
   (`buildMonthGrid`). Imports only from `domain`.
 - `src/infrastructure/`: adapters that implement the ports (`GoogleCalendarEventRepository`,
-  `DemoEventRepository`, `SystemClock`) and decorators (`CachingEventRepository`).
+  `SnapshotEventRepository`, `DemoEventRepository`, `SystemClock`) and decorators
+  (`CachingEventRepository`, `FallbackEventRepository`). Both Google sources convert to
+  `RawEvent` and map it with the shared `toCalendarEvent()` in `raw-event.ts`, so they behave the
+  same. Keep it that way.
+- `scripts/`: build-time Node code with its own `tsconfig.json` (Node globals are allowed here and
+  never in `src/`). `ical/ical-to-snapshot.ts` is pure and unit-tested; `sync-ical.ts` handles
+  I/O and is the command-line entry point. The snapshot format (`EventSnapshot`, `version: 1`) is
+  a contract with already-deployed pages: change it only by adding fields, or bump the version.
 - `src/presentation/`: DOM rendering (`CalendarView`), `Intl` formatting and `styles.css`.
 - `src/embed/`: iframe concerns (`IframeHeightReporter`, which sends `postMessage` to the parent).
 - `src/config/`: parses query-string parameters into a typed `AppConfig`.
@@ -80,8 +95,16 @@ boundary error, move the code to the correct layer or add a port. Do not disable
 
 A push to `main` runs `deploy.yml` (check, build, `upload-pages-artifact`, `deploy-pages`). The
 repository's Pages source must be set to **GitHub Actions**, and `main` must be the default branch
-(the `github-pages` environment only accepts deployments from it). The build reads the repository
-**variables** `VITE_GOOGLE_CALENDAR_ID`, `VITE_GOOGLE_API_KEY` and `VITE_TIME_ZONE`. For local
+(the `github-pages` environment only accepts deployments from it). The build reads these repository
+**variables**:
+
+- `ICAL_URL` (and optionally `ICAL_PAST_MONTHS` / `ICAL_FUTURE_MONTHS`);
+- `VITE_GOOGLE_CALENDAR_ID`, `VITE_GOOGLE_API_KEY`, `VITE_TIME_ZONE`, `VITE_EVENT_SOURCE`.
+
+The workflow also runs every 10 minutes. Those scheduled runs only re-sync the iCal feed, skip
+the checks, and deploy only when the events changed compared with the live `events.json`. A
+failed sync on a push keeps the previously deployed snapshot. Never commit `public/events.json`,
+because it is generated. For local
 development, copy `.env.example` to `.env.local`. Only `dist/` is published. Files in
 `public/` (for example `embed-demo.html`) are copied into it as they are.
 
