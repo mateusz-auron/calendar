@@ -98,13 +98,21 @@
         visibility: 'visible',
       };
       for (var property in style) layer.style.setProperty(property, style[property], 'important');
+      // The visible screen, not the area behind the phone browser's collapsible toolbars:
+      // otherwise the bottom of the details sheet sits under the toolbar and has to scroll.
+      if (window.CSS && CSS.supports('height', '100dvh')) {
+        layer.style.setProperty('height', '100dvh', 'important');
+      }
       setLayerVisible(false);
       document.body.appendChild(layer);
     }
 
-    // Hidden means visibility:hidden, not only transparent: cross-origin, browsers can still
-    // route touches to a transparent full-screen iframe and the page would not scroll.
+    // While hidden, the layer is moved off-screen as well as made invisible: phone browsers
+    // can route scroll gestures to an iframe under the finger even when it is transparent,
+    // click-through or hidden, and the page would not scroll. Off-screen it stays loaded and
+    // laid out at full size, so details still open at once.
     function setLayerVisible(visible) {
+      layer.style.setProperty('left', visible ? '0' : '-300vw', 'important');
       layer.style.setProperty('visibility', visible ? 'visible' : 'hidden', 'important');
       layer.style.setProperty('opacity', visible ? '1' : '0', 'important');
       layer.style.setProperty('pointer-events', visible ? 'auto' : 'none', 'important');
