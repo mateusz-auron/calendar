@@ -16,10 +16,8 @@ import { EN, PL } from './messages';
 const clock: Clock = { today: () => plainDate(2026, 11, 7) };
 
 const links: EventLinks = {
-  addToCalendar: ({ title }) => ({
-    href: `https://cal.example/add?text=${encodeURIComponent(title)}`,
-  }),
-  directions: (location) => ({ href: `https://maps.example/?q=${encodeURIComponent(location)}` }),
+  addToCalendarUrl: ({ title }) => `https://cal.example/add?text=${encodeURIComponent(title)}`,
+  directionsUrl: (location) => `https://maps.example/?q=${encodeURIComponent(location)}`,
 };
 
 const tournament = (
@@ -63,11 +61,7 @@ const repo = (events: readonly CalendarEvent[]): EventRepository => ({
     Promise.resolve(events.filter((e) => overlaps(range, e.date, e.endDate ?? e.date))),
 });
 
-function createView(
-  repository: EventRepository = repo(EVENTS),
-  locale = 'pl-PL',
-  eventLinks: EventLinks = links,
-) {
+function createView(repository: EventRepository = repo(EVENTS), locale = 'pl-PL') {
   const root = document.createElement('div');
   document.body.append(root);
   const view = new CalendarView({
@@ -75,7 +69,7 @@ function createView(
     service: new CalendarService(repository, clock, { weekStartsOn: 1 }),
     formatter: new CalendarFormatter(locale),
     messages: locale.startsWith('en') ? EN : PL,
-    links: eventLinks,
+    links,
     clock,
     weekStartsOn: 1,
   });
@@ -245,22 +239,6 @@ describe('CalendarView – details dialog', () => {
     expect([...dialog.querySelectorAll('.cal-ev__link')].map((a) => a.textContent)).toEqual([
       'Dodaj do kalendarza (otwiera się w nowej karcie)',
     ]);
-  });
-
-  it('renders a file link as a download in the same tab, so the phone opens it in its calendar app', async () => {
-    const { root, view, dialog } = createView(repo(EVENTS), 'pl-PL', {
-      addToCalendar: () => ({ href: 'data:text/calendar,x', download: 'wydarzenie.ics' }),
-      directions: () => ({ href: 'geo:0,0?q=Sklep' }),
-    });
-    await view.show(view.month);
-    tile(root, 'nov14')?.click();
-    const [add, directions] = dialog.querySelectorAll<HTMLAnchorElement>('.cal-ev__link');
-    expect(add?.getAttribute('href')).toBe('data:text/calendar,x');
-    expect(add?.getAttribute('download')).toBe('wydarzenie.ics');
-    expect(add?.hasAttribute('target')).toBe(false);
-    expect(add?.textContent).toBe('Dodaj do kalendarza');
-    expect(directions?.getAttribute('href')).toBe('geo:0,0?q=Sklep');
-    expect(directions?.target).toBe('_blank');
   });
 
   it('shows a generic event with only title, date and notes', async () => {

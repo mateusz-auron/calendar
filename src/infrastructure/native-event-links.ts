@@ -1,41 +1,26 @@
-import type { CalendarEntry, EventLinks, ExternalLink } from '../domain';
-import { toIcs } from './ics';
+import type { CalendarEntry, EventLinks } from '../domain';
 
 const APPLE_MAPS_URL = 'https://maps.apple.com/';
-const ICS_FILE = 'wydarzenie.ics';
 
 /**
- * Links that open the phone's own apps:
- *
- * - iOS: the event as an `.ics` file, which Safari hands to the Calendar app ("Add to
- *   Calendar"), and an Apple Maps universal link, which opens Maps with directions.
- * - Android: the event as an `.ics` download, which opens in the calendar app (Chrome cannot
- *   start a calendar's "new event" screen from a web page), and a `geo:` link, which opens the
- *   chosen maps app.
+ * Links for phones: directions open the native maps app (Apple Maps universal link on iOS,
+ * a `geo:` link on Android, which opens the chosen maps app). "Add to calendar" stays a
+ * Google Calendar link from `calendar`.
  */
 export class NativeEventLinks implements EventLinks {
-  /**
-   * @param timeZone The calendar's zone; event times are wall-clock times in it.
-   * @param now Current time, for the file's DTSTAMP.
-   */
   constructor(
     private readonly platform: 'ios' | 'android',
-    private readonly timeZone: string,
-    private readonly now: () => Date = () => new Date(),
+    private readonly calendar: EventLinks,
   ) {}
 
-  addToCalendar(entry: CalendarEntry): ExternalLink {
-    const href = `data:text/calendar;charset=utf-8,${encodeURIComponent(
-      toIcs(entry, this.timeZone, this.now()),
-    )}`;
-    // iOS Safari shows "Add to Calendar" when it opens the file; a download would only save it.
-    return this.platform === 'ios' ? { href } : { href, download: ICS_FILE };
+  addToCalendarUrl(entry: CalendarEntry): string {
+    return this.calendar.addToCalendarUrl(entry);
   }
 
-  directions(location: string): ExternalLink {
+  directionsUrl(location: string): string {
     const destination = encodeURIComponent(location);
     return this.platform === 'ios'
-      ? { href: `${APPLE_MAPS_URL}?daddr=${destination}` }
-      : { href: `geo:0,0?q=${destination}` };
+      ? `${APPLE_MAPS_URL}?daddr=${destination}`
+      : `geo:0,0?q=${destination}`;
   }
 }

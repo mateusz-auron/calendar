@@ -61,12 +61,11 @@ function createRepository(config: AppConfig): EventRepository {
   return new CachingEventRepository(chain);
 }
 
-/** Phones open their own calendar and maps apps; other devices get Google's web pages. */
+/** Google Calendar everywhere; on phones, directions open the native maps app. */
 function createLinks(timeZone: string): EventLinks {
+  const google = new GoogleEventLinks(timeZone);
   const platform = detectPlatform(navigator);
-  return platform === 'other'
-    ? new GoogleEventLinks(timeZone)
-    : new NativeEventLinks(platform, timeZone);
+  return platform === 'other' ? google : new NativeEventLinks(platform, google);
 }
 
 /**

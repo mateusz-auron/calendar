@@ -5,19 +5,19 @@ import { GoogleEventLinks } from './google-event-links';
 const links = new GoogleEventLinks('Europe/Warsaw');
 const base: CalendarEvent = { id: 'e', title: 'T', date: plainDate(2026, 11, 7), url: 'u' };
 const dates = (event: Partial<CalendarEvent>) =>
-  new URL(links.addToCalendar({ event: { ...base, ...event }, title: 'T' }).href).searchParams.get(
+  new URL(links.addToCalendarUrl({ event: { ...base, ...event }, title: 'T' })).searchParams.get(
     'dates',
   );
 
-describe('GoogleEventLinks.addToCalendar', () => {
+describe('GoogleEventLinks.addToCalendarUrl', () => {
   it('builds a template link with title, wall-clock times, zone, details and location', () => {
     const url = new URL(
-      links.addToCalendar({
+      links.addToCalendarUrl({
         event: { ...base, startTime: { hour: 11, minute: 0 }, endTime: { hour: 16, minute: 0 } },
         title: 'League Challenge & więcej',
         location: 'Sklep, ul. Długa 1',
         details: 'Format: Standard',
-      }).href,
+      }),
     );
     expect(url.origin + url.pathname).toBe('https://calendar.google.com/calendar/render');
     expect(Object.fromEntries(url.searchParams)).toEqual({
@@ -59,14 +59,14 @@ describe('GoogleEventLinks.addToCalendar', () => {
 
   it('has no time zone for all-day events', () => {
     expect(
-      new URL(links.addToCalendar({ event: base, title: 'T' }).href).searchParams.has('ctz'),
+      new URL(links.addToCalendarUrl({ event: base, title: 'T' })).searchParams.has('ctz'),
     ).toBe(false);
   });
 });
 
-describe('GoogleEventLinks.directions', () => {
+describe('GoogleEventLinks.directionsUrl', () => {
   it('encodes the destination', () => {
-    expect(links.directions('Sklep, ul. Długa 1 & 2').href).toBe(
+    expect(links.directionsUrl('Sklep, ul. Długa 1 & 2')).toBe(
       'https://www.google.com/maps/dir/?api=1&destination=Sklep%2C+ul.+D%C5%82uga+1+%26+2',
     );
   });

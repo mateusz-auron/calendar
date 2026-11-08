@@ -137,10 +137,8 @@ Variables**. For local development, put them in `.env.local` (copy `.env.example
   A tournament ending after midnight but before 06:00 stays on its first day.
 - **Multi-day events** appear on every day they cover.
 - **Clicking an event** opens the details dialog. Its links (registration, results, add to
-  calendar, directions) open in a new tab. On phones, "add to calendar" and directions open the
-  native apps: on iOS an `.ics` file (Calendar's "Add" sheet) and Apple Maps; on Android an
-  `.ics` download (opens in the calendar app) and a `geo:` link (the maps app). Other devices
-  get Google Calendar and Google Maps in the browser.
+  calendar, directions) open in a new tab. On phones, directions open the native maps app
+  (Apple Maps on iOS, a `geo:` link on Android); "add to calendar" is a Google Calendar link.
 - **Descriptions** are parsed into tournament fields; any other text is shown as plain text.
   Problems (unknown game, bad link, …) are listed in the sync job's GitHub Actions summary.
 - **Data already loaded** is cached, so going back and forth doesn't fetch it again.
@@ -172,7 +170,7 @@ Workflows:
   src="https://<user>.github.io/<repo>/?parentOrigin=https://your-site.example"
   title="Kalendarz turniejów"
   style="display:block; width:100%; max-width:1200px; height:1300px; margin:0 auto; border:0"
-  sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
+  sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
 ></iframe>
 <script src="https://<user>.github.io/<repo>/embed.js" defer></script>
 ```
@@ -198,8 +196,7 @@ Without `embed.js`, give the iframe a fixed height that fits the tallest month (
 
 If you use `sandbox`, you need both `allow-popups` and `allow-popups-to-escape-sandbox`. Without
 them, the dialog's registration and results links cannot open a new tab, or the new page opens
-with the iframe's sandbox restrictions. Add `allow-downloads` too: on Android, "add to calendar"
-downloads an `.ics` file. A working example is deployed at `/embed-demo.html`
+with the iframe's sandbox restrictions. A working example is deployed at `/embed-demo.html`
 (source: `public/embed-demo.html`).
 
 ### URL parameters
