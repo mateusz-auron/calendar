@@ -5,11 +5,13 @@
  *   <script src="https://…/calendar/embed.js" defer></script>
  *
  * - Resizes the iframe to its content (calendar:resize).
- * - Scrolls the event details into view when they open at the screen edge (calendar:focus).
- * - Overlay mode: while the event details are open, the iframe covers the whole screen, so the
- *   backdrop greys the entire page, the dialog sits above the page's own bars, and the phone
- *   bottom sheet uses the full width. <html> gets the class "calendar-dialog-open" meanwhile,
- *   e.g. to hide a bottom navigation bar: .calendar-dialog-open .bottom-nav { display: none }
+ * - Event details open in a "details layer": a second, transparent iframe covering the whole
+ *   screen (the calendar with ?mode=details). It is loaded once, kept invisible, and shown only
+ *   when its dialog is ready, so the backdrop greys the entire page, the dialog sits above the
+ *   page's own bars, and the phone bottom sheet uses the full width. The calendar iframe itself
+ *   never moves, and the page's scrolling is not touched.
+ * - While details are open, <html> has the class "calendar-dialog-open", e.g. to hide a bottom
+ *   navigation bar: .calendar-dialog-open .bottom-nav { display: none }
  *
  * No dependencies; safe to include more than once.
  */
@@ -18,7 +20,14 @@
 
   var ATTRIBUTE = 'data-tournament-calendar';
   var OPEN_CLASS = 'calendar-dialog-open';
-  var REVEAL_TIMEOUT_MS = 600;
+  /** If the details layer does not answer, the calendar opens the details itself. */
+  var FALLBACK_MS = 2500;
+
+  function withParam(src, name, value) {
+    var url = new URL(src, window.location.href);
+    url.searchParams.set(name, value);
+    return url.href;
+  }
 
   function attach(frame) {
     if (!frame || frame.__tournamentCalendar) return;
@@ -31,160 +40,178 @@
       return;
     }
 
-    var overlay = null; // state while the iframe covers the screen
-    var revealTimer = 0;
+    var layer = null; // the details iframe
+    var layerReady = false; // it said hello
+    var open = false; // details visible
+    var pending = null; // request waiting for the layer to show it
+    var fallbackTimer = 0;
+    var lastMonth = null; // month the calendar shows, for prefetching
 
-    function post(message) {
+    function toCalendar(message) {
       if (frame.contentWindow) frame.contentWindow.postMessage(message, origin);
     }
 
+    function toLayer(message) {
+      if (layer && layer.contentWindow) layer.contentWindow.postMessage(message, origin);
+    }
+
     function announce() {
-      post({ type: 'calendar:host', overlay: true });
+      if (layerReady) toCalendar({ type: 'calendar:host', details: true });
     }
 
-    function rectOf(element) {
-      var r = element.getBoundingClientRect();
-      return { left: r.left, top: r.top, width: r.width, height: r.height };
-    }
-
-    // The calendar draws itself again after a switch; keep the iframe invisible (but focusable)
-    // until it says it is ready, so the swap does not flash.
-    function hideUntilReady() {
-      frame.style.opacity = '0';
-      clearTimeout(revealTimer);
-      revealTimer = setTimeout(reveal, REVEAL_TIMEOUT_MS);
-    }
-
-    function reveal() {
-      clearTimeout(revealTimer);
-      frame.style.opacity = '';
-    }
-
-    function enterOverlay() {
-      if (overlay) return;
-      var html = document.documentElement;
-      var computed = window.getComputedStyle(frame);
-      var rect = frame.getBoundingClientRect();
-
-      // Scroll anchoring would "correct" the scroll position when the iframe leaves the page
-      // flow (and again when it returns); the placeholder keeps the layout identical anyway.
-      html.style.overflowAnchor = 'none';
-
-      // Keep the iframe's place in the page while it is lifted out of the flow.
-      var placeholder = document.createElement('div');
-      placeholder.setAttribute('aria-hidden', 'true');
-      placeholder.style.cssText =
-        'display:block;box-sizing:border-box;max-width:100%;' +
-        'width:' +
-        rect.width +
-        'px;height:' +
-        rect.height +
-        'px;' +
-        'margin:' +
-        computed.marginTop +
-        ' ' +
-        computed.marginRight +
-        ' ' +
-        computed.marginBottom +
-        ' ' +
-        computed.marginLeft +
-        ';';
-      frame.parentNode.insertBefore(placeholder, frame);
-
-      overlay = {
-        placeholder: placeholder,
-        frameStyle: frame.getAttribute('style'),
-        htmlOverflow: html.style.overflow,
-        htmlGutter: html.style.scrollbarGutter,
-        htmlAnchor: html.style.overflowAnchor,
+    function createLayer() {
+      if (layer) return;
+      layer = document.createElement('iframe');
+      layer.src = withParam(frame.src, 'mode', 'details');
+      layer.title = frame.title || 'Event details';
+      var sandbox = frame.getAttribute('sandbox');
+      if (sandbox !== null) layer.setAttribute('sandbox', sandbox);
+      layer.setAttribute('tabindex', '-1');
+      layer.setAttribute('aria-hidden', 'true');
+      layer.inert = true;
+      // !important: the host page's own iframe rules (sizes, borders, shadows) must not apply.
+      var style = {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        'min-width': '0',
+        'max-width': 'none',
+        'min-height': '0',
+        'max-height': 'none',
+        margin: '0',
+        padding: '0',
+        border: '0',
+        'border-radius': '0',
+        'box-shadow': 'none',
+        transform: 'none',
+        filter: 'none',
+        background: 'transparent',
+        'color-scheme': 'normal',
+        'z-index': '2147483647',
+        display: 'block',
+        visibility: 'visible',
       };
-
-      // Stop the page from scrolling behind the dialog without shifting it.
-      if (window.innerWidth > html.clientWidth) html.style.scrollbarGutter = 'stable';
-      html.style.overflow = 'hidden';
-      html.classList.add(OPEN_CLASS);
-
-      hideUntilReady();
-      frame.style.position = 'fixed';
-      frame.style.top = '0';
-      frame.style.left = '0';
-      frame.style.right = '0';
-      frame.style.bottom = '0';
-      frame.style.width = '100%';
-      frame.style.height = '100%';
-      frame.style.maxWidth = 'none';
-      frame.style.maxHeight = 'none';
-      frame.style.margin = '0';
-      frame.style.border = '0';
-      frame.style.borderRadius = '0';
-      frame.style.boxShadow = 'none';
-      frame.style.transform = 'none';
-      frame.style.zIndex = '2147483647';
-
-      post({ type: 'calendar:overlay', active: true, rect: rectOf(placeholder) });
+      for (var property in style) layer.style.setProperty(property, style[property], 'important');
+      setLayerVisible(false);
+      document.body.appendChild(layer);
     }
 
-    function exitOverlay() {
-      if (!overlay) return;
-      var html = document.documentElement;
-      hideUntilReady();
-      if (overlay.frameStyle === null) frame.removeAttribute('style');
-      else frame.setAttribute('style', overlay.frameStyle);
-      frame.style.opacity = '0'; // restoring the style dropped it
-      overlay.placeholder.parentNode.removeChild(overlay.placeholder);
-      html.style.overflow = overlay.htmlOverflow;
-      html.style.scrollbarGutter = overlay.htmlGutter;
-      html.classList.remove(OPEN_CLASS);
-      // Re-enable scroll anchoring only after the iframe is back in the layout.
-      var anchor = overlay.htmlAnchor;
-      requestAnimationFrame(function () {
-        html.style.overflowAnchor = anchor;
-      });
-      overlay = null;
-      post({ type: 'calendar:overlay', active: false });
+    function setLayerVisible(visible) {
+      layer.style.setProperty('opacity', visible ? '1' : '0', 'important');
+      layer.style.setProperty('pointer-events', visible ? 'auto' : 'none', 'important');
+    }
+
+    function showLayer() {
+      clearTimeout(fallbackTimer);
+      pending = null;
+      if (open) return;
+      open = true;
+      layer.inert = false;
+      layer.removeAttribute('aria-hidden');
+      setLayerVisible(true);
+      document.documentElement.classList.add(OPEN_CLASS);
+      layer.focus();
+      toLayer({ type: 'calendar:details-shown' });
+    }
+
+    function hideLayer() {
+      clearTimeout(fallbackTimer);
+      pending = null;
+      if (!layer) return;
+      var wasOpen = open;
+      open = false;
+      setLayerVisible(false);
+      layer.setAttribute('aria-hidden', 'true');
+      layer.inert = true;
+      document.documentElement.classList.remove(OPEN_CLASS);
+      if (wasOpen) frame.focus();
+    }
+
+    function requestDetails(data) {
+      if (!layer || !layerReady) {
+        toCalendar({ type: 'calendar:details-fallback', request: data });
+        return;
+      }
+      pending = data;
+      toLayer(data);
+      clearTimeout(fallbackTimer);
+      fallbackTimer = setTimeout(function () {
+        var request = pending;
+        hideLayer();
+        if (request) toCalendar({ type: 'calendar:details-fallback', request: request });
+      }, FALLBACK_MS);
     }
 
     window.addEventListener('message', function (event) {
-      if (event.source !== frame.contentWindow || event.origin !== origin) return;
+      if (event.origin !== origin) return;
       var data = event.data;
       if (!data || typeof data.type !== 'string') return;
 
-      switch (data.type) {
-        case 'calendar:hello':
-          announce();
-          break;
-        case 'calendar:resize':
-          // While the overlay is open the iframe is full screen; its page slot keeps its size.
-          if (!overlay && typeof data.height === 'number') frame.style.height = data.height + 'px';
-          break;
-        case 'calendar:focus':
-          if (!overlay && typeof data.top === 'number') {
-            var frameTop = frame.getBoundingClientRect().top + window.scrollY;
-            var top = frameTop + data.top - 16;
-            var bottom = frameTop + data.top + (data.height || 0) + 16;
-            if (top < window.scrollY || bottom > window.scrollY + window.innerHeight) {
-              window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      if (event.source === frame.contentWindow) {
+        switch (data.type) {
+          case 'calendar:hello':
+            createLayer();
+            announce();
+            break;
+          case 'calendar:resize':
+            if (typeof data.height === 'number') frame.style.height = data.height + 'px';
+            break;
+          case 'calendar:focus':
+            if (typeof data.top === 'number') {
+              var frameTop = frame.getBoundingClientRect().top + window.scrollY;
+              var top = frameTop + data.top - 16;
+              var bottom = frameTop + data.top + (data.height || 0) + 16;
+              if (top < window.scrollY || bottom > window.scrollY + window.innerHeight) {
+                window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+              }
             }
-          }
-          break;
-        case 'calendar:dialog':
-          if (data.open === true) enterOverlay();
-          else if (data.open === false) exitOverlay();
-          break;
-        case 'calendar:overlay-ready':
-          reveal();
-          break;
+            break;
+          case 'calendar:month':
+            lastMonth = data;
+            toLayer(data);
+            break;
+          case 'calendar:details':
+            requestDetails(data);
+            break;
+        }
+        return;
+      }
+
+      if (layer && event.source === layer.contentWindow) {
+        switch (data.type) {
+          case 'calendar:hello':
+            layerReady = true;
+            announce();
+            if (lastMonth) toLayer(lastMonth);
+            break;
+          case 'calendar:details-ready':
+            // Too late (the calendar already opened the details itself): close it again.
+            if (pending) showLayer();
+            else if (!open) toLayer({ type: 'calendar:details-cancel' });
+            break;
+          case 'calendar:details-closed':
+            if (open) {
+              hideLayer();
+              toCalendar({
+                type: 'calendar:details-closed',
+                eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+              });
+            } else if (pending) {
+              // The layer could not show this request: let the calendar open it itself.
+              var request = pending;
+              hideLayer();
+              toCalendar({ type: 'calendar:details-fallback', request: request });
+            }
+            break;
+          case 'calendar:month':
+            // Prev/next in the details moved to another month: the calendar follows behind.
+            toCalendar({ type: 'calendar:month', month: data.month });
+            break;
+        }
       }
     });
-
-    // Rotation or window resize while open: tell the calendar where its slot is now.
-    window.addEventListener('resize', function () {
-      if (overlay)
-        post({ type: 'calendar:overlay', active: true, rect: rectOf(overlay.placeholder) });
-    });
-
-    frame.addEventListener('load', announce);
-    announce();
   }
 
   function attachAll() {

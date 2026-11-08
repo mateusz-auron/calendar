@@ -10,7 +10,7 @@ import {
   type EventRepository,
 } from '../domain';
 import { CalendarFormatter } from './calendar-formatter';
-import { CalendarView } from './calendar-view';
+import { CalendarView, type CalendarViewDeps } from './calendar-view';
 import { EN, PL } from './messages';
 
 const clock: Clock = { today: () => plainDate(2026, 11, 7) };
@@ -337,18 +337,8 @@ describe('CalendarView – details dialog', () => {
   });
 });
 
-describe('CalendarView – dialog overlay (embedded)', () => {
-  function createWithOverlay() {
-    let release: (() => void) | undefined;
-    const overlay = {
-      enter: vi.fn(
-        () =>
-          new Promise<void>((resolve) => {
-            release = resolve;
-          }),
-      ),
-      exit: vi.fn(),
-    };
+describe('CalendarView – details layer (embed.js)', () => {
+  function createWith(extra: Partial<CalendarViewDeps>) {
     const root = document.createElement('div');
     document.body.append(root);
     const view = new CalendarView({
@@ -359,37 +349,94 @@ describe('CalendarView – dialog overlay (embedded)', () => {
       links,
       clock,
       weekStartsOn: 1,
-      dialogOverlay: overlay,
+      ...extra,
     });
-    return { root, view, dialog: view.dialogElement, overlay, release: () => release?.() };
+    return { root, view, dialog: view.dialogElement };
   }
 
-  it('waits for the overlay before showing the dialog and releases it after closing', async () => {
-    const { root, view, dialog, overlay, release } = createWithOverlay();
+  it('hands event and day clicks to the details layer and restores focus afterwards', async () => {
+    const delegate = vi.fn(() => true);
+    const { root, view, dialog } = createWith({ detailsDelegate: delegate });
     await view.show(view.month);
-    tile(root, 'nov14')?.click();
-    expect(overlay.enter).toHaveBeenCalledOnce();
+    const trigger = tile(root, 'nov14');
+    trigger?.click();
+    expect(delegate).toHaveBeenCalledWith({
+      date: plainDate(2026, 11, 14),
+      eventId: 'nov14',
+      filter: 'all',
+    });
     expect(dialog.open).toBe(false);
 
-    release();
-    await vi.waitFor(() => {
-      expect(dialog.open).toBe(true);
-    });
-    expect(dialog.querySelector('h2')?.textContent).toBe('Title nov14');
-
-    dialog.querySelector<HTMLButtonElement>('.cal-dialog__close')?.click();
-    expect(overlay.exit).toHaveBeenCalledOnce();
+    view.restoreFocus('nov14');
+    expect(document.activeElement).toBe(trigger);
   });
 
-  it('does not open when closed while waiting, and still releases the overlay', async () => {
-    const { root, view, dialog, overlay, release } = createWithOverlay();
+  it('opens the details itself when the delegate declines', async () => {
+    const { root, view, dialog } = createWith({ detailsDelegate: () => false });
     await view.show(view.month);
     tile(root, 'nov14')?.click();
-    await view.next(); // closes the pending dialog
-    expect(overlay.exit).toHaveBeenCalledOnce();
-    release();
-    await Promise.resolve();
+    expect(dialog.open).toBe(true);
+  });
+
+  it('opens a requested event, also from another month, and reports shown/closed', async () => {
+    const onDetailsShown = vi.fn();
+    const onDetailsClosed = vi.fn();
+    const { view, dialog } = createWith({ onDetailsShown, onDetailsClosed });
+    await view.show(view.month);
+
+    expect(
+      await view.openRequest({ date: plainDate(2026, 12, 5), eventId: 'dec5', filter: 'all' }),
+    ).toBe(true);
+    expect(view.month).toEqual(yearMonth(2026, 11)); // 5 Dec is in November's last row
+    expect(dialog.querySelector('h2')?.textContent).toBe('Title dec5');
+    expect(dialog.querySelector('.cal-evnav__pos')?.textContent).toBe('');
+    await vi.waitFor(() => {
+      expect(dialog.querySelector('.cal-evnav__pos')?.textContent).toBe('1 / 1');
+    });
+    expect(onDetailsShown).toHaveBeenCalledOnce();
+
+    dialog.close();
+    expect(onDetailsClosed).toHaveBeenCalledWith('dec5');
+  });
+
+  it('opens a day request as a list and rejects unknown events', async () => {
+    const day = [2026, 11, 25] as const;
+    const { view, dialog } = createWith({});
+    await view.show(view.month);
+    expect(
+      await view.openRequest({ date: plainDate(2026, 11, 3), eventId: 'x', filter: 'all' }),
+    ).toBe(false);
     expect(dialog.open).toBe(false);
+
+    const repoDay = repo([tournament('a', [...day]), tournament('b', [...day])]);
+    const other = new CalendarView({
+      root: document.createElement('div'),
+      service: new CalendarService(repoDay, clock, { weekStartsOn: 1 }),
+      formatter: new CalendarFormatter('pl-PL'),
+      messages: PL,
+      links,
+      clock,
+      weekStartsOn: 1,
+    });
+    expect(await other.openRequest({ date: plainDate(...day), filter: 'all' })).toBe(true);
+    expect(other.dialogElement.querySelectorAll('article')).toHaveLength(2);
+  });
+
+  it('applies the requested filter and reports month changes from prev/next', async () => {
+    const onEventNavigated = vi.fn();
+    const { view, dialog } = createWith({ onEventNavigated });
+    await view.openRequest({ date: plainDate(2026, 11, 20), eventId: 'nov20', filter: 'pokemon' });
+    expect(view.activeFilter).toBe('pokemon');
+    await view.navigateEvent(1);
+    expect(dialog.querySelector('h2')?.textContent).toBe('Title dec5');
+    expect(onEventNavigated).toHaveBeenCalledWith(yearMonth(2026, 12));
+  });
+
+  it('ignores prefetching while the details are open', async () => {
+    const { view } = createWith({});
+    await view.openRequest({ date: plainDate(2026, 11, 14), eventId: 'nov14', filter: 'all' });
+    await view.prefetch(yearMonth(2027, 3), 'all');
+    expect(view.month).toEqual(yearMonth(2026, 11));
   });
 });
 

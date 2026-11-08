@@ -179,12 +179,14 @@ Workflows:
 It handles every iframe with the `data-tournament-calendar` attribute:
 
 - **Height:** the iframe follows its content, so there is no inner scrollbar or empty space.
-- **Overlay mode:** while event details are open, the iframe covers the whole screen. The
-  backdrop greys the entire page, the dialog sits above the page's own bars, and the phone bottom
-  sheet uses the full width. The calendar stays drawn exactly where it was, and the page does not
-  scroll behind it. `<html>` gets the class `calendar-dialog-open` meanwhile, for example to hide
-  a bottom navigation bar: `.calendar-dialog-open .bottom-nav { display: none }`.
-- **Focus:** scrolls the details into view if they open at the screen edge (without overlay mode).
+- **Details layer:** event details open in a second, transparent iframe that covers the whole
+  screen (the calendar with `?mode=details`). It is loaded once, stays invisible, and appears only
+  when its dialog is ready, so the backdrop greys the entire page, the dialog sits above the
+  page's own bars, and the phone bottom sheet uses the full width. The calendar iframe never
+  moves and the page's scrolling is not touched, so nothing flickers. `<html>` gets the class
+  `calendar-dialog-open` meanwhile, for example to hide a bottom navigation bar:
+  `.calendar-dialog-open .bottom-nav { display: none }`.
+- **Focus:** returns to the event's tile when the details close.
 
 Without `embed.js`, give the iframe a fixed height that fits the tallest month (about 1400 px at
 1200 px wide). The calendar then keeps the dialog inside the visible part of the iframe on its own.
@@ -208,28 +210,40 @@ with the iframe's sandbox restrictions. A working example is deployed at `/embed
 
 ### Message contract
 
-`embed.js` implements all of this; you only need it to write your own host script.
+`embed.js` implements all of this; you only need it to write your own host script. The calendar
+is the `data-tournament-calendar` iframe; the details layer is the same page with `?mode=details`.
 
 ```ts
 // calendar → host
 { type: 'calendar:resize', height: number } // CSS px, on load and on every layout change
-{ type: 'calendar:focus', top: number, height: number } // optional: dialog opened near the edge
-{ type: 'calendar:hello' } // calendar started: send calendar:host (again)
-{ type: 'calendar:dialog', open: boolean } // overlay mode only: details opening / closed
-{ type: 'calendar:overlay-ready' } // layout switched: show the iframe again
+{ type: 'calendar:focus', top: number, height: number } // no details layer: dialog near the edge
+{ type: 'calendar:hello' } // started: answer with calendar:host once a details layer exists
+{ type: 'calendar:month', month: 'YYYY-MM', filter: string } // month on screen (for prefetching)
+{ type: 'calendar:details', date: 'YYYY-MM-DD', eventId?: string, filter: string } // open details
 
 // host → calendar
-{ type: 'calendar:host', overlay: true } // the host supports overlay mode
-{ type: 'calendar:overlay', active: true, rect: { left, top, width, height } } // iframe now full
-// screen; rect = where its slot is in the viewport (sent again on resize)
-{ type: 'calendar:overlay', active: false } // iframe back in the page
+{ type: 'calendar:host', details: true } // a details layer is ready: send calendar:details
+{ type: 'calendar:details-closed', eventId?: string } // layer closed: restore focus
+{ type: 'calendar:month', month: 'YYYY-MM' } // prev/next in the layer moved to another month
+{ type: 'calendar:details-fallback', request: { date, eventId?, filter } } // open it yourself
+
+// details layer → host
+{ type: 'calendar:hello', role: 'details' } // loaded
+{ type: 'calendar:details-ready' } // dialog open: show the layer
+{ type: 'calendar:details-closed', eventId?: string } // dialog closed: hide the layer
+{ type: 'calendar:month', month: 'YYYY-MM' } // prev/next moved to another month
+
+// host → details layer
+{ type: 'calendar:details', … } // forwarded from the calendar
+{ type: 'calendar:month', month, filter } // forwarded: load ahead of time
+{ type: 'calendar:details-shown' } // layer visible: take focus
+{ type: 'calendar:details-cancel' } // too late, the calendar opened the details itself
 ```
 
-Overlay mode is opt-in: without `calendar:host` the calendar never sends `calendar:dialog`, and
-the dialog stays inside the part of the iframe that is on screen (measured with an
-`IntersectionObserver`). `calendar:focus` is only a hint to scroll that part into view. The
-calendar only accepts host messages from its parent window and, when `parentOrigin` is set, only
-from that origin.
+Without `calendar:host` the calendar opens the details inside its own iframe and keeps the dialog
+in the part of the iframe that is on screen (measured with an `IntersectionObserver`);
+`calendar:focus` is then only a hint to scroll that part into view. Both pages accept messages
+only from their parent window and, when `parentOrigin` is set, only from that origin.
 
 ## Architecture
 

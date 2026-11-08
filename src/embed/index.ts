@@ -1,4 +1,6 @@
+export * from './details-bridge';
+export * from './details-page-client';
 export * from './dialog-focus-requester';
 export * from './iframe-height-reporter';
-export * from './overlay-mode';
+export * from './messages';
 export * from './visible-area';

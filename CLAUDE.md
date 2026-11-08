@@ -62,9 +62,13 @@ domain  <-  application  <-  presentation | infrastructure | embed | config  <- 
   `Intl` formatting, game colours/logos in `game-theme.ts`, self-hosted fonts and `styles.css`.
 - `src/embed/`: iframe concerns: `IframeHeightReporter` (`calendar:resize`), `VisibleAreaTracker`
   (keeps the dialog inside the on-screen part of the auto-height iframe via CSS variables),
-  `DialogFocusRequester` (optional `calendar:focus` hint to the host) and `OverlayModeClient`
-  (opt-in full-screen overlay while the dialog is open; handshake documented in the file). The
-  host side is `public/embed.js` (plain JS, served as is): keep both sides of the protocol in sync.
+  `DialogFocusRequester` (optional `calendar:focus` hint to the host), `DetailsBridge` (main
+  calendar: hands event details to the host's details layer) and `DetailsPageClient` (the details
+  layer itself, `?mode=details`: a transparent full-screen iframe that only shows the dialog).
+  Message types and validation live in `messages.ts`. The host side is `public/embed.js` (plain
+  JS, served as is): keep all sides of the protocol in sync with README, "Message contract".
+  The calendar iframe must never be moved or resized to show details: that is what caused
+  flicker and layout jumps in an earlier design.
 - `src/config/`: parses query-string parameters into a typed `AppConfig`.
 - `src/main.ts`: the **composition root**. It is the only file that instantiates concrete classes.
 
