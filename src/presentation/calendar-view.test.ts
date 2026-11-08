@@ -337,6 +337,62 @@ describe('CalendarView – details dialog', () => {
   });
 });
 
+describe('CalendarView – dialog overlay (embedded)', () => {
+  function createWithOverlay() {
+    let release: (() => void) | undefined;
+    const overlay = {
+      enter: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            release = resolve;
+          }),
+      ),
+      exit: vi.fn(),
+    };
+    const root = document.createElement('div');
+    document.body.append(root);
+    const view = new CalendarView({
+      root,
+      service: new CalendarService(repo(EVENTS), clock, { weekStartsOn: 1 }),
+      formatter: new CalendarFormatter('pl-PL'),
+      messages: PL,
+      links,
+      clock,
+      weekStartsOn: 1,
+      dialogOverlay: overlay,
+    });
+    return { root, view, dialog: view.dialogElement, overlay, release: () => release?.() };
+  }
+
+  it('waits for the overlay before showing the dialog and releases it after closing', async () => {
+    const { root, view, dialog, overlay, release } = createWithOverlay();
+    await view.show(view.month);
+    tile(root, 'nov14')?.click();
+    expect(overlay.enter).toHaveBeenCalledOnce();
+    expect(dialog.open).toBe(false);
+
+    release();
+    await vi.waitFor(() => {
+      expect(dialog.open).toBe(true);
+    });
+    expect(dialog.querySelector('h2')?.textContent).toBe('Title nov14');
+
+    dialog.querySelector<HTMLButtonElement>('.cal-dialog__close')?.click();
+    expect(overlay.exit).toHaveBeenCalledOnce();
+  });
+
+  it('does not open when closed while waiting, and still releases the overlay', async () => {
+    const { root, view, dialog, overlay, release } = createWithOverlay();
+    await view.show(view.month);
+    tile(root, 'nov14')?.click();
+    await view.next(); // closes the pending dialog
+    expect(overlay.exit).toHaveBeenCalledOnce();
+    release();
+    await Promise.resolve();
+    expect(dialog.open).toBe(false);
+  });
+});
+
 describe('CalendarView – errors', () => {
   it('renders an error with a working retry instead of failing silently', async () => {
     const findInRange = vi

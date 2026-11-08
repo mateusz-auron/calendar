@@ -61,8 +61,10 @@ domain  <-  application  <-  presentation | infrastructure | embed | config  <- 
   `month-grid-view`, `event-tile` and `EventDialog`), copy in `messages.ts` (PL default, EN),
   `Intl` formatting, game colours/logos in `game-theme.ts`, self-hosted fonts and `styles.css`.
 - `src/embed/`: iframe concerns: `IframeHeightReporter` (`calendar:resize`), `VisibleAreaTracker`
-  (keeps the dialog inside the on-screen part of the auto-height iframe via CSS variables) and
-  `DialogFocusRequester` (optional `calendar:focus` hint to the host).
+  (keeps the dialog inside the on-screen part of the auto-height iframe via CSS variables),
+  `DialogFocusRequester` (optional `calendar:focus` hint to the host) and `OverlayModeClient`
+  (opt-in full-screen overlay while the dialog is open; handshake documented in the file). The
+  host side is `public/embed.js` (plain JS, served as is): keep both sides of the protocol in sync.
 - `src/config/`: parses query-string parameters into a typed `AppConfig`.
 - `src/main.ts`: the **composition root**. It is the only file that instantiates concrete classes.
 
@@ -89,8 +91,8 @@ boundary error, move the code to the correct layer or add a port. Do not disable
   `<a href target="_blank" rel="noopener noreferrer">`, not `window.open`. External URLs are built
   by the `EventLinks` port (`GoogleEventLinks`), never in views. Popup blockers and iframe sandboxes allow anchors, and anchors are accessible.
 - **Iframe**: keep `base: './'` in `vite.config.ts`. Do not add anything that breaks framing (for
-  example a `frame-ancestors` CSP or `X-Frame-Options`). Keep the `calendar:resize` and `calendar:focus`
-  message shapes backward compatible, because host pages depend on them.
+  example a `frame-ancestors` CSP or `X-Frame-Options`). Keep all `calendar:*` message shapes
+  (README, Message contract) backward compatible, because host pages depend on them.
 - **Accessibility**: use semantic table markup, `aria-current="date"` for today, labelled buttons,
   and visible `:focus-visible` styles.
 - **TypeScript**: strict mode with `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.

@@ -1,3 +1,4 @@
+import { OVERLAY_CLASS } from './overlay-mode';
 import { DIALOG_MIN_HEIGHT, type VisibleArea } from './visible-area';
 
 export const FOCUS_MESSAGE_TYPE = 'calendar:focus';
@@ -44,6 +45,8 @@ export class DialogFocusRequester {
   }
 
   request(): void {
+    // In overlay mode the iframe already covers the screen; scrolling the host would misalign it.
+    if (this.dialog.ownerDocument.documentElement.classList.contains(OVERLAY_CLASS)) return;
     const area = this.visibleArea();
     if (area && area.bottom - area.top >= COMFORTABLE_HEIGHT) return;
     const rect = this.dialog.getBoundingClientRect();

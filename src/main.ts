@@ -4,7 +4,12 @@ import './presentation/styles.css';
 import { CalendarService } from './application';
 import { parseConfig, type AppConfig, type EventSourceKind } from './config/app-config';
 import type { EventRepository } from './domain';
-import { DialogFocusRequester, IframeHeightReporter, VisibleAreaTracker } from './embed';
+import {
+  DialogFocusRequester,
+  IframeHeightReporter,
+  OverlayModeClient,
+  VisibleAreaTracker,
+} from './embed';
 import {
   CachingEventRepository,
   DemoEventRepository,
@@ -78,6 +83,10 @@ function bootstrap(): void {
   });
   const reporter = new IframeHeightReporter(window, config.parentOrigin);
   if (reporter.isEmbedded) document.documentElement.classList.add('is-embedded');
+  // Opt-in full-screen overlay for the details dialog, when the host page supports it.
+  const overlay = reporter.isEmbedded
+    ? new OverlayModeClient(window, config.parentOrigin)
+    : undefined;
 
   const view = new CalendarView(
     {
@@ -89,6 +98,7 @@ function bootstrap(): void {
       clock,
       weekStartsOn: config.weekStartsOn,
       initialFilter: config.initialFilter,
+      ...(overlay ? { dialogOverlay: overlay } : {}),
       onRender: () => {
         reporter.report();
       },
@@ -97,6 +107,7 @@ function bootstrap(): void {
   );
 
   reporter.start();
+  overlay?.start();
   if (reporter.isEmbedded) {
     // Keep the details dialog inside the part of the iframe that is on screen.
     const visibleArea = new VisibleAreaTracker(window);

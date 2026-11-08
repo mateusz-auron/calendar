@@ -24,6 +24,14 @@ describe('DialogFocusRequester', () => {
     requester.stop();
   });
 
+  it('stays quiet in overlay mode (the iframe already covers the screen)', () => {
+    const { requester, parent } = setup({ top: 1400, bottom: 1500 });
+    document.documentElement.classList.add('is-overlay');
+    requester.request();
+    document.documentElement.classList.remove('is-overlay');
+    expect(parent.postMessage).not.toHaveBeenCalled();
+  });
+
   it('stays quiet when enough is visible', () => {
     const { requester, parent } = setup({ top: 0, bottom: 800 });
     requester.request();

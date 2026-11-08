@@ -12,7 +12,7 @@ import {
 } from '../domain';
 import type { CalendarFormatter } from './calendar-formatter';
 import { h } from './dom';
-import { EventDialog } from './event-dialog';
+import { EventDialog, type DialogOverlay } from './event-dialog';
 import { EventText } from './event-text';
 import { renderGameFilter } from './game-filter';
 import type { Messages } from './messages';
@@ -30,6 +30,8 @@ export interface CalendarViewDeps {
   readonly initialFilter?: GameFilter;
   /** Element that holds the details dialog (default: the document body). */
   readonly dialogHost?: HTMLElement;
+  /** Full-screen overlay around the dialog when embedded (see embed/overlay-mode.ts). */
+  readonly dialogOverlay?: DialogOverlay;
   /** Called after every render — e.g. to notify an iframe host of size changes. */
   readonly onRender?: () => void;
 }
@@ -62,6 +64,7 @@ export class CalendarView {
       links: deps.links,
       onNavigate: (direction) => void this.navigateEvent(direction),
       fallbackFocus: () => deps.root.querySelector<HTMLElement>('.calendar__title'),
+      ...(deps.dialogOverlay ? { overlay: deps.dialogOverlay } : {}),
     });
   }
 

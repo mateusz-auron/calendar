@@ -18,6 +18,16 @@ export interface EventDialogDeps {
   readonly onNavigate: (direction: 1 | -1) => void;
   /** Where focus goes when the element that opened the dialog is gone. */
   readonly fallbackFocus: () => HTMLElement | null;
+  /**
+   * Optional full-screen overlay around the dialog (iframe embeds): `enter()`
+   * resolves when the dialog may be shown, `exit()` runs after it closed.
+   */
+  readonly overlay?: DialogOverlay;
+}
+
+export interface DialogOverlay {
+  enter(): Promise<void>;
+  exit(): void;
 }
 
 export interface Neighbours {
@@ -40,6 +50,8 @@ export class EventDialog {
   private current: EventCard | undefined;
   private navButtons: { previous: HTMLButtonElement; next: HTMLButtonElement } | undefined;
   private positionLabel: HTMLElement | undefined;
+  /** Waiting for the overlay before showing; `close()` during the wait cancels. */
+  private opening: { cancelled: boolean } | undefined;
 
   constructor(private readonly deps: EventDialogDeps) {
     const m = deps.messages;
@@ -124,7 +136,18 @@ export class EventDialog {
   }
 
   close(): void {
+    if (this.opening) {
+      this.opening.cancelled = true;
+      this.opening = undefined;
+      this.onClosed();
+      return;
+    }
     if (this.element.open) this.element.close();
+  }
+
+  /** Open, or about to open (waiting for the overlay). */
+  get isShowing(): boolean {
+    return this.element.open || this.opening !== undefined;
   }
 
   private render(articles: HTMLElement[], label: string, trigger: HTMLElement | null): void {
@@ -133,10 +156,25 @@ export class EventDialog {
     this.element.style.transform = '';
     this.scroller.replaceChildren(...articles);
     this.scroller.scrollTop = 0;
-    if (!this.element.open) {
-      this.element.showModal();
-      this.element.ownerDocument.documentElement.classList.add('cal-modal-open');
+    if (this.element.open || this.opening) return;
+    const overlay = this.deps.overlay;
+    if (!overlay) {
+      this.show();
+      return;
     }
+    const opening = { cancelled: false };
+    this.opening = opening;
+    const show = () => {
+      if (opening.cancelled) return;
+      this.opening = undefined;
+      this.show();
+    };
+    overlay.enter().then(show, show);
+  }
+
+  private show(): void {
+    this.element.showModal();
+    this.element.ownerDocument.documentElement.classList.add('cal-modal-open');
   }
 
   private onClosed(): void {
@@ -148,6 +186,7 @@ export class EventDialog {
     const target = this.trigger?.isConnected ? this.trigger : this.deps.fallbackFocus();
     this.trigger = null;
     target?.focus();
+    this.deps.overlay?.exit();
   }
 
   private renderNav(position?: { index: number; total: number }): HTMLElement {

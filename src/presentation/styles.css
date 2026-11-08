@@ -1176,7 +1176,7 @@ button.cal-day__num {
  * Embedded: the iframe is as tall as its content, so its viewport is mostly off-screen.
  * embed/visible-area.ts publishes where the visible slice is; the dialog stays inside it.
  */
-.is-embedded .cal-dialog {
+.is-embedded:not(.is-overlay) .cal-dialog {
   top: var(--dialog-top, 24px);
   bottom: auto;
   max-height: var(--dialog-max-height, calc(100% - 48px));
@@ -1184,13 +1184,30 @@ button.cal-day__num {
 }
 
 @media (max-width: 760px) {
-  .is-embedded .cal-dialog {
+  .is-embedded:not(.is-overlay) .cal-dialog {
     top: auto;
     bottom: var(--sheet-bottom, 0px);
     height: var(--sheet-height, min(88%, 640px));
     max-height: none;
     margin: 0;
   }
+}
+
+/*
+ * Overlay mode (embed/overlay-mode.ts): while the details are open the iframe covers the whole
+ * screen. The page shows through, and the calendar stays drawn where the iframe was.
+ */
+.is-overlay,
+.is-overlay body {
+  background: transparent;
+}
+
+.is-overlay #app {
+  position: absolute;
+  top: var(--overlay-top, 0px);
+  left: var(--overlay-left, 0px);
+  width: var(--overlay-width, 100%);
+  background: var(--c-bg);
 }
 
 @media (prefers-reduced-motion: reduce) {
