@@ -285,6 +285,49 @@ describe('CalendarView – details dialog', () => {
     expect(document.activeElement).toBe(root.querySelector('.calendar__title'));
   });
 
+  it("counts an event from a neighbouring month's row within its own month", async () => {
+    // January 2027 starts on a Friday: its first row shows 28–31 December.
+    const { root, view, dialog } = createView(
+      repo([
+        tournament('dec10', [2026, 12, 10]),
+        tournament('dec29', [2026, 12, 29]),
+        tournament('dec30', [2026, 12, 30]),
+        tournament('jan8', [2027, 1, 8]),
+      ]),
+    );
+    await view.show(yearMonth(2027, 1));
+    tile(root, 'dec29')?.click();
+    const position = () => dialog.querySelector('.cal-evnav__pos')?.textContent;
+    await vi.waitFor(() => {
+      expect(position()).toBe('2 / 3');
+    });
+  });
+
+  it('jumps from the last event of a month to 1 / N of the next one, and back', async () => {
+    const { root, view, dialog } = createView(
+      repo([
+        tournament('nov14', [2026, 11, 14]),
+        tournament('nov20', [2026, 11, 20]),
+        tournament('dec10', [2026, 12, 10]),
+        tournament('dec12', [2026, 12, 12]),
+      ]),
+    );
+    await view.show(view.month);
+    const position = () => dialog.querySelector('.cal-evnav__pos')?.textContent;
+    tile(root, 'nov20')?.click();
+    expect(position()).toBe('2 / 2');
+
+    await view.navigateEvent(1);
+    expect(view.month).toEqual(yearMonth(2026, 12));
+    expect(dialog.querySelector('h2')?.textContent).toBe('Title dec10');
+    expect(position()).toBe('1 / 2');
+
+    await view.navigateEvent(-1);
+    expect(view.month).toEqual(yearMonth(2026, 11));
+    expect(dialog.querySelector('h2')?.textContent).toBe('Title nov20');
+    expect(position()).toBe('2 / 2');
+  });
+
   it('closes when the month is changed from the header', async () => {
     const { root, view, dialog } = createView();
     await view.show(view.month);

@@ -44,7 +44,7 @@ export interface RawEventMappingOptions {
 const OVERNIGHT_END_HOUR = 6;
 const MAX_LOCATION_LENGTH = 200;
 
-/** Maps a raw event to the domain model; `undefined` for cancelled or malformed events. */
+/** Maps a raw event to the domain model; `undefined` for cancelled, hidden or malformed events. */
 export function toCalendarEvent(
   raw: RawEvent,
   options: RawEventMappingOptions,
@@ -55,6 +55,8 @@ export function toCalendarEvent(
   const end = raw.end ? resolveEnd(raw.end, start, options.timeZone) : undefined;
 
   const { info, notes } = parseEventDescription(raw.description);
+  // `visible: nie` in the description: the organiser hid the event from this calendar.
+  if (info.visible === false) return undefined;
   const location = raw.location?.replace(/\s+/g, ' ').trim().slice(0, MAX_LOCATION_LENGTH);
   return {
     id: raw.id,

@@ -32,6 +32,7 @@ wpisowe: 20 zł
 miejsca: 24
 zapisy: https://example.com/zapisy
 wyniki:
+widoczne: tak
 
 Tu możesz dopisać dowolny tekst, np. "Przynieś własne koszulki".
 ```
@@ -42,17 +43,18 @@ Każde pole ma kilka równoważnych nazw. Wielkość liter i polskie znaki nie m
 (`Krótki tytuł`, `KROTKI TYTUL` i `krotki_tytul` działają tak samo). Spacja, `-` i `_` w nazwie też
 są równoważne.
 
-| Pole              | Nazwy                                                      | Wartość                                        | Gdzie się pokazuje                     |
-| ----------------- | ---------------------------------------------------------- | ---------------------------------------------- | -------------------------------------- |
-| **Gra**           | `gra`, `game`                                              | Lorcana, Riftbound, One Piece, Pokemon         | logo gry, kolory, filtr gier           |
-| **Krótki tytuł**  | `krótki tytuł`, `tytuł krótki`, `short_title`              | do 40 znaków                                   | kafelek w widoku miesiąca              |
-| **Pełny tytuł**   | `pełny tytuł`, `tytuł`, `full_title`, `title`              | do 120 znaków                                  | nagłówek w oknie szczegółów            |
-| **Krótki format** | `krótki format`, `short_format`                            | do 24 znaków, np. `Standard`                   | mała etykieta na kafelku               |
-| **Format**        | `format`, `pełny format`, `full_format`                    | do 80 znaków, np. `Standard · Swiss · 4 rundy` | „Format” w oknie szczegółów            |
-| **Wpisowe**       | `wpisowe`, `cena`, `price`, `fee`                          | kwota albo tekst (szczegóły niżej)             | „Wpisowe” na dole okna szczegółów      |
-| **Miejsca**       | `miejsca`, `liczba miejsc`, `ilość miejsc`, `seats`        | liczba od 1 do 999 albo `bez limitu`           | „Liczba miejsc” w oknie szczegółów     |
-| **Zapisy**        | `zapisy`, `rejestracja`, `tournament_link`, `registration` | link `https://…` (albo `www.…`)                | przycisk „Zapisz się na turniej”       |
-| **Wyniki**        | `wyniki`, `results_link`, `results`                        | link `https://…` (albo `www.…`)                | przycisk „Zobacz wyniki” (po turnieju) |
+| Pole              | Nazwy                                                            | Wartość                                        | Gdzie się pokazuje                     |
+| ----------------- | ---------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------- |
+| **Gra**           | `gra`, `game`                                                    | Lorcana, Riftbound, One Piece, Pokemon         | logo gry, kolory, filtr gier           |
+| **Krótki tytuł**  | `krótki tytuł`, `tytuł krótki`, `short_title`                    | do 40 znaków                                   | kafelek w widoku miesiąca              |
+| **Pełny tytuł**   | `pełny tytuł`, `tytuł`, `full_title`, `title`                    | do 120 znaków                                  | nagłówek w oknie szczegółów            |
+| **Krótki format** | `krótki format`, `short_format`                                  | do 24 znaków, np. `Standard`                   | mała etykieta na kafelku               |
+| **Format**        | `format`, `pełny format`, `full_format`                          | do 80 znaków, np. `Standard · Swiss · 4 rundy` | „Format” w oknie szczegółów            |
+| **Wpisowe**       | `wpisowe`, `cena`, `price`, `fee`                                | kwota albo tekst (szczegóły niżej)             | „Wpisowe” na dole okna szczegółów      |
+| **Miejsca**       | `miejsca`, `liczba miejsc`, `ilość miejsc`, `seats`              | liczba od 1 do 999 albo `bez limitu`           | „Liczba miejsc” w oknie szczegółów     |
+| **Zapisy**        | `zapisy`, `rejestracja`, `tournament_link`, `registration`       | link `https://…` (albo `www.…`)                | przycisk „Zapisz się na turniej”       |
+| **Wyniki**        | `wyniki`, `results_link`, `results`                              | link `https://…` (albo `www.…`)                | przycisk „Zobacz wyniki” (po turnieju) |
+| **Widoczne**      | `widoczne`, `widoczny`, `widoczność`, `pokaż`, `visible`, `show` | `tak` / `nie` (szczegóły niżej)                | czy wydarzenie w ogóle jest na stronie |
 
 ### Gra
 
@@ -78,6 +80,24 @@ Działają też dłuższe nazwy, np. „Disney Lorcana”, „Pokémon TCG”, �
 Przycisk „Zapisz się na turniej” jest widoczny przed turniejem i w dniu turnieju, a „Zobacz wyniki”
 po turnieju.
 
+### Widoczne
+
+Pozwala ukryć wydarzenie na stronie, bez usuwania go z Kalendarza Google (np. szkic turnieju
+albo wydarzenie wewnętrzne).
+
+| Wpisujesz                                                     | Na stronie                 |
+| ------------------------------------------------------------- | -------------------------- |
+| `nie`, `false`, `no`, `0`, `off`, `ukryte`, `ukryj`, `hidden` | wydarzenie jest **ukryte** |
+| `tak`, `true`, `yes`, `1`, `on`, `widoczne`, `pokaż`, `show`  | wydarzenie jest widoczne   |
+| brak pola, puste pole albo inna wartość                       | wydarzenie jest widoczne   |
+
+Ukryte wydarzenie znika ze strony całkowicie: z siatki miesiąca, z liczników, z filtrów i z
+przycisków poprzednie/następne.
+
+**Uwaga:** to ukrywa wydarzenie tylko na stronie sklepu. Kalendarz Google jest publiczny, więc
+wydarzenie nadal widzi każdy, kto otworzy sam kalendarz lub jego adres iCal. Wydarzeń naprawdę
+prywatnych nie dodawaj do tego kalendarza.
+
 ### Separator
 
 Jako separatora możesz użyć `:`, `=` albo myślnika ze spacjami:
@@ -102,6 +122,7 @@ Gdy pola brakuje albo jest błędne, strona pokazuje:
 | miejsca       | 12                                                                                                            |
 | zapisy        | nieaktywny przycisk „Zapisy wkrótce”                                                                          |
 | wyniki        | po turnieju nieaktywny przycisk „Wyniki wkrótce”                                                              |
+| widoczne      | wydarzenie jest widoczne                                                                                      |
 | miejsce       | adres sklepu z ustawień strony (jeśli ustawiony); w przeciwnym razie miejsce i link „Wyznacz trasę” są ukryte |
 
 ## 5. Wydarzenie bez gry

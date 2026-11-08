@@ -753,11 +753,11 @@ button.cal-day__num {
 
 .cal-ev__title {
   margin: 0;
-  font-family: var(--font-display);
+  font-family: var(--font);
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.15;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   overflow-wrap: break-word;
 }
 

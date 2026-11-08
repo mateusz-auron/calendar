@@ -39,6 +39,7 @@ export class EventDialog {
   private trigger: HTMLElement | null = null;
   private current: EventCard | undefined;
   private navButtons: { previous: HTMLButtonElement; next: HTMLButtonElement } | undefined;
+  private positionLabel: HTMLElement | undefined;
 
   constructor(private readonly deps: EventDialogDeps) {
     const m = deps.messages;
@@ -84,12 +85,21 @@ export class EventDialog {
   openDay(date: PlainDate, cards: readonly EventCard[], trigger: HTMLElement | null): void {
     this.current = undefined;
     this.navButtons = undefined;
+    this.positionLabel = undefined;
     const label = this.deps.messages.eventDetails(this.deps.formatter.date(date));
     this.render(
       cards.map((card) => this.renderArticle(card)),
       label,
       trigger,
     );
+  }
+
+  /** "n / N" within the event's own month; may arrive after opening (another month loads). */
+  setPosition(card: EventCard, position: { index: number; total: number } | undefined): void {
+    if (card !== this.current || !this.positionLabel) return;
+    this.positionLabel.textContent = position
+      ? `${String(position.index + 1)} / ${String(position.total)}`
+      : '';
   }
 
   /** Enables prev/next once the neighbours are known (they load asynchronously). */
@@ -132,6 +142,7 @@ export class EventDialog {
   private onClosed(): void {
     this.current = undefined;
     this.navButtons = undefined;
+    this.positionLabel = undefined;
     this.element.style.transform = '';
     this.element.ownerDocument.documentElement.classList.remove('cal-modal-open');
     const target = this.trigger?.isConnected ? this.trigger : this.deps.fallbackFocus();
@@ -160,15 +171,16 @@ export class EventDialog {
     const previous = button(-1);
     const next = button(1);
     this.navButtons = { previous, next };
+    this.positionLabel = h(
+      'span',
+      { class: 'cal-evnav__pos', 'aria-live': 'polite' },
+      position ? `${String(position.index + 1)} / ${String(position.total)}` : '',
+    );
     return h(
       'nav',
       { class: 'cal-evnav', 'aria-label': m.otherEvents },
       previous,
-      h(
-        'span',
-        { class: 'cal-evnav__pos', 'aria-live': 'polite' },
-        position ? `${String(position.index + 1)} / ${String(position.total)}` : '',
-      ),
+      this.positionLabel,
       next,
     );
   }

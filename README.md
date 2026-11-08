@@ -5,6 +5,7 @@ static site, deployed to GitHub Pages by GitHub Actions. The UI is in Polish by 
 
 Organisers add tournaments in Google Calendar and write the details (game, titles, format, entry
 fee, seats, registration and results links) in the event description, one `key: value` per line.
+`visible: nie` (or `widoczne: nie`) hides an event from the calendar.
 See **[docs/event-description.md](docs/event-description.md)** (in Polish) for the template.
 
 - **Google Calendar integration**, two ways that can be combined:

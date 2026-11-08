@@ -127,9 +127,16 @@ export class CalendarView {
   }
 
   openEvent(card: EventCard, trigger: HTMLElement | null = null): void {
-    const events = this.view?.monthEvents ?? [];
-    const index = events.findIndex((e) => e.event.id === card.event.id);
-    this.dialog.openEvent(card, trigger, index >= 0 ? { index, total: events.length } : undefined);
+    const month = yearMonthOf(card.event.date);
+    // "n / N" counts the events of the event's own month, which may not be the month on
+    // screen (a December event in January's first row). The visible month is known already.
+    const visible = this.view && isSameYearMonth(this.view.month, month) ? this.view : undefined;
+    this.dialog.openEvent(
+      card,
+      trigger,
+      visible ? positionIn(visible.monthEvents, card) : undefined,
+    );
+    if (!visible) void this.loadPosition(card, month);
     void this.loadNeighbours(card);
   }
 
@@ -147,6 +154,16 @@ export class CalendarView {
     const month = yearMonthOf(target.event.date);
     if (!isSameYearMonth(month, this.current)) await this.show(month);
     this.openEvent(target);
+  }
+
+  /** Position of an event from a neighbouring month (served from the cache in practice). */
+  private async loadPosition(card: EventCard, month: YearMonth): Promise<void> {
+    try {
+      const view = await this.deps.service.getMonthView(month, this.filter);
+      this.dialog.setPosition(card, positionIn(view.monthEvents, card));
+    } catch (error) {
+      console.warn('[calendar] could not load the event position', error);
+    }
   }
 
   private async loadNeighbours(card: EventCard): Promise<void> {
@@ -257,4 +274,12 @@ export class CalendarView {
       ),
     );
   }
+}
+
+function positionIn(
+  events: readonly EventCard[],
+  card: EventCard,
+): { index: number; total: number } | undefined {
+  const index = events.findIndex((e) => e.event.id === card.event.id);
+  return index >= 0 ? { index, total: events.length } : undefined;
 }
