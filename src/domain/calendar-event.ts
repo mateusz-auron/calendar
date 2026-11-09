@@ -1,5 +1,5 @@
 import type { EventInfo } from './event-info';
-import type { PlainDate } from './plain-date';
+import { addDays, compareDates, type PlainDate } from './plain-date';
 
 /** Wall-clock time of day in the calendar's display time zone. */
 export interface TimeOfDay {
@@ -33,4 +33,31 @@ export interface CalendarEvent {
 /** Last day (inclusive) the event occupies. */
 export function lastDayOf(event: CalendarEvent): PlainDate {
   return event.endDate ?? event.date;
+}
+
+/** A wall-clock moment in the calendar's display time zone. */
+export interface DateTime {
+  readonly date: PlainDate;
+  readonly time: TimeOfDay;
+}
+
+const minutesOf = (t: TimeOfDay): number => t.hour * 60 + t.minute;
+
+/**
+ * The event is over at `now`: its end time has passed, or, without an end
+ * time, its last day is before `now`'s date. An end time at or before the start
+ * time of a single-day event (or at midnight) belongs to the next day.
+ */
+export function hasEnded(event: CalendarEvent, now: DateTime): boolean {
+  const lastDay = lastDayOf(event);
+  const end = event.endTime;
+  if (!end) return compareDates(lastDay, now.date) < 0;
+  const nextDay =
+    minutesOf(end) === 0 ||
+    (!event.endDate &&
+      event.startTime !== undefined &&
+      minutesOf(end) <= minutesOf(event.startTime));
+  const endDay = nextDay ? addDays(lastDay, 1) : lastDay;
+  const byDay = compareDates(endDay, now.date);
+  return byDay < 0 || (byDay === 0 && minutesOf(end) <= minutesOf(now.time));
 }

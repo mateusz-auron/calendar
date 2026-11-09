@@ -9,8 +9,10 @@ default). Other sites load it in an `<iframe>`, and GitHub Pages hosts it (deplo
 `.github/workflows/deploy.yml`). Clicking an event opens a details dialog; registration and results
 links in the dialog open in a new tab. Tournament fields (game, titles, formats, price, seats,
 links, `visible`) are written by organisers in the event description, one `key: value` per line, and parsed
-by `infrastructure/event-description-parser.ts`; defaults ("TBA", 12 seats, "Wyniki wkrótce") are
-applied in `application/event-card.ts`. `visible: nie` drops the event in the shared `toCalendarEvent()`. The plan is in `docs/plans/tournament-design.md`.
+by `infrastructure/event-description-parser.ts`; defaults ("TBA", 12 seats, "Zapisy wkrótce") are
+applied in `application/event-card.ts`. An event counts as past from its end time (`hasEnded()` in
+`domain/calendar-event.ts`, fed by `Clock.now()`); then the button links to the results, or to the
+tournament page (registration link) when there are none. `visible: nie` drops the event in the shared `toCalendarEvent()`. The plan is in `docs/plans/tournament-design.md`.
 Events come from a public Google Calendar in one or both ways:
 
 - **iCal sync**: a scheduled workflow runs `scripts/sync-ical.ts`, which turns the feed in

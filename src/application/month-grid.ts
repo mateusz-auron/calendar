@@ -13,6 +13,7 @@ import {
   isSameYearMonth,
   type CalendarEvent,
   type DateRange,
+  type DateTime,
   type GameFilter,
   type GameId,
   type PlainDate,
@@ -63,7 +64,8 @@ export interface MonthView {
 
 export interface MonthGridInput {
   readonly month: YearMonth;
-  readonly today: PlainDate;
+  /** Current date and time; ended events are marked past from their end time. */
+  readonly now: DateTime;
   readonly weekStartsOn: Weekday;
   readonly events: readonly CalendarEvent[];
   readonly filter?: GameFilter;
@@ -86,12 +88,13 @@ export function gridRange(month: YearMonth, weekStartsOn: Weekday): DateRange {
 
 /** Pure function: builds the month view-model. No I/O, fully unit-testable. */
 export function buildMonthGrid(input: MonthGridInput): MonthView {
-  const { month, today, weekStartsOn } = input;
+  const { month, now, weekStartsOn } = input;
+  const today = now.date;
   const filter = input.filter ?? 'all';
   const range = gridRange(month, weekStartsOn);
   const cards = [...input.events]
     .sort(compareEvents)
-    .map((event) => buildEventCard(event, today, input.defaults ?? CARD_DEFAULTS));
+    .map((event) => buildEventCard(event, now, input.defaults ?? CARD_DEFAULTS));
   const visible = cards.filter((card) => matchesFilter(card, filter));
   const eventsByDay = groupByDay(range, visible);
   const inMonth = (date: PlainDate) => isSameYearMonth(yearMonthOf(date), month);

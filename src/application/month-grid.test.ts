@@ -15,7 +15,7 @@ const days = (view: ReturnType<typeof buildMonthGrid>) => view.weeks.flatMap((w)
 describe('buildMonthGrid', () => {
   const base = {
     month: yearMonth(2026, 11),
-    today: plainDate(2026, 11, 7),
+    now: { date: plainDate(2026, 11, 7), time: { hour: 12, minute: 0 } },
     weekStartsOn: 1 as const,
     events: [],
   };
@@ -101,7 +101,7 @@ describe('buildMonthGrid', () => {
 describe('buildMonthGrid – multi-day and ordering', () => {
   const base = {
     month: yearMonth(2026, 11),
-    today: plainDate(2026, 11, 7),
+    now: { date: plainDate(2026, 11, 7), time: { hour: 12, minute: 0 } },
     weekStartsOn: 1 as const,
   };
 

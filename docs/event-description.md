@@ -50,17 +50,17 @@ Zamiast `:` możesz użyć `=` albo myślnika ze spacjami (`wpisowe – 20 zł`)
 
 ## Wartości domyślne
 
-| Gdy brakuje…     | Na stronie pojawi się                                      |
-| ---------------- | ---------------------------------------------------------- |
-| krótkiego tytułu | nazwa gry, np. „Pokémon”                                   |
-| pełnego tytułu   | tytuł wydarzenia z Kalendarza Google                       |
-| formatu          | „TBA” (krótki format bierze się z pełnego, np. `Standard`) |
-| wpisowego        | „TBA”                                                      |
-| liczby miejsc    | 12                                                         |
-| linku do zapisów | nieaktywny przycisk „Zapisy wkrótce”                       |
-| linku do wyników | po turnieju nieaktywny przycisk „Wyniki wkrótce”           |
-| pola `widoczne`  | wydarzenie jest widoczne                                   |
-| miejsca          | adres sklepu z ustawień strony                             |
+| Gdy brakuje…     | Na stronie pojawi się                                        |
+| ---------------- | ------------------------------------------------------------ |
+| krótkiego tytułu | nazwa gry, np. „Pokémon”                                     |
+| pełnego tytułu   | tytuł wydarzenia z Kalendarza Google                         |
+| formatu          | „TBA” (krótki format bierze się z pełnego, np. `Standard`)   |
+| wpisowego        | „TBA”                                                        |
+| liczby miejsc    | 12                                                           |
+| linku do zapisów | nieaktywny przycisk „Zapisy wkrótce”                         |
+| linku do wyników | po turnieju przycisk „Zobacz stronę turnieju” (link zapisów) |
+| pola `widoczne`  | wydarzenie jest widoczne                                     |
+| miejsca          | adres sklepu z ustawień strony                               |
 
 ## Ukrywanie wydarzenia
 

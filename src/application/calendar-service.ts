@@ -41,7 +41,7 @@ export class CalendarService {
     const events = await this.repository.findInRange(this.rangeOf(month));
     return buildMonthGrid({
       month,
-      today: this.clock.today(),
+      now: this.clock.now(),
       weekStartsOn: this.options.weekStartsOn,
       events,
       filter,
@@ -59,7 +59,7 @@ export class CalendarService {
     direction: 1 | -1,
     filter: GameFilter = 'all',
   ): Promise<EventCard | undefined> {
-    const today = this.clock.today();
+    const now = this.clock.now();
     const start = yearMonthOf(event.date);
     for (let step = 0; step <= ADJACENT_SEARCH_MONTHS; step++) {
       const events = await this.repository.findInRange(
@@ -68,7 +68,7 @@ export class CalendarService {
       const candidates = events
         .filter((e) => compareEvents(e, event) * direction > 0)
         .sort((a, b) => compareEvents(a, b) * direction)
-        .map((e) => buildEventCard(e, today, this.defaults))
+        .map((e) => buildEventCard(e, now, this.defaults))
         .filter((card) => matchesFilter(card, filter));
       if (candidates[0]) return candidates[0];
     }

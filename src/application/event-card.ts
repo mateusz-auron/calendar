@@ -1,11 +1,10 @@
 import {
-  compareDates,
   gameById,
-  lastDayOf,
+  hasEnded,
   type CalendarEvent,
+  type DateTime,
   type GameFilter,
   type GameId,
-  type PlainDate,
   type Price,
   type Seats,
 } from '../domain';
@@ -17,11 +16,18 @@ export type PriceValue = Price | { readonly kind: 'tba' };
 export type LinkState =
   { readonly kind: 'link'; readonly url: string } | { readonly kind: 'pending' };
 
-export interface EventAction {
-  /** Registration before/on the event day, results afterwards. */
-  readonly kind: 'register' | 'results';
-  readonly link: LinkState;
-}
+/**
+ * The footer button:
+ * - `register`: until the event ends (a disabled "coming soon" without a link);
+ * - `results`: after it ends, when a results link is given;
+ * - `page`: after it ends without a results link, opening the tournament page.
+ */
+export type EventAction =
+  | { readonly kind: 'register'; readonly link: LinkState }
+  | {
+      readonly kind: 'results' | 'page';
+      readonly link: { readonly kind: 'link'; readonly url: string };
+    };
 
 /**
  * - `game`: a game from the catalogue (own logo, defaults applied).
@@ -47,7 +53,7 @@ export interface EventCard {
   readonly seats?: Seats;
   readonly location?: string;
   readonly notes?: string;
-  /** The event's last day is before today. */
+  /** The event has ended: its end time has passed (or, without one, its last day). */
   readonly isPast: boolean;
   readonly action?: EventAction;
 }
@@ -65,14 +71,14 @@ const SHORT_FORMAT_MAX = 24;
 
 export function buildEventCard(
   event: CalendarEvent,
-  today: PlainDate,
+  now: DateTime,
   defaults: CardDefaults = CARD_DEFAULTS,
 ): EventCard {
   const info = event.info ?? {};
   const game = info.game;
   const variant: CardVariant = !game ? 'generic' : game.kind === 'known' ? 'game' : 'other-game';
   const isGame = variant !== 'generic';
-  const isPast = compareDates(lastDayOf(event), today) < 0;
+  const isPast = hasEnded(event, now);
 
   const known = game?.kind === 'known' ? gameById(game.id) : undefined;
   const gameName = known?.shortName ?? (game?.kind === 'other' ? game.name : undefined);
@@ -84,8 +90,7 @@ export function buildEventCard(
     text ? { kind: 'text', text } : isGame ? { kind: 'tba' } : undefined;
   const linkState = (url: string | undefined): LinkState | undefined =>
     url ? { kind: 'link', url } : isGame ? { kind: 'pending' } : undefined;
-  const actionKind = isPast ? 'results' : 'register';
-  const link = linkState(isPast ? info.resultsUrl : info.registrationUrl);
+  const action = isPast ? pastAction(info) : upcomingAction(linkState(info.registrationUrl));
   const price: PriceValue | undefined = info.price ?? (isGame ? { kind: 'tba' } : undefined);
   const seats: Seats | undefined =
     info.seats ?? (isGame ? { kind: 'count', value: defaults.seats } : undefined);
@@ -106,8 +111,23 @@ export function buildEventCard(
     ...(location ? { location } : {}),
     ...(event.notes ? { notes: event.notes } : {}),
     isPast,
-    ...(link ? { action: { kind: actionKind, link } } : {}),
+    ...(action ? { action } : {}),
   };
+}
+
+function upcomingAction(link: LinkState | undefined): EventAction | undefined {
+  return link ? { kind: 'register', link } : undefined;
+}
+
+function pastAction(info: {
+  readonly resultsUrl?: string;
+  readonly registrationUrl?: string;
+}): EventAction | undefined {
+  if (info.resultsUrl) return { kind: 'results', link: { kind: 'link', url: info.resultsUrl } };
+  if (info.registrationUrl) {
+    return { kind: 'page', link: { kind: 'link', url: info.registrationUrl } };
+  }
+  return undefined;
 }
 
 /** `Standard · Swiss · 4 rundy` → `Standard` (also splits on `|`, `,`, `/` and spaced dashes). */

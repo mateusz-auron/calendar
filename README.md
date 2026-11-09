@@ -14,8 +14,10 @@ See **[docs/event-description.md](docs/event-description.md)** (in Polish) for t
   - the **Google Calendar API**: called live from the browser with a restricted API key.
 - Month grid with game logos, a **game filter**, and a **details dialog** (bottom sheet on phones)
   with registration / results buttons, "add to calendar" and directions links.
-- Missing details get defaults: "TBA" format and fee, 12 seats, "Zapisy wkrótce" /
-  "Wyniki wkrótce". Events without a game are shown as generic events.
+- Missing details get defaults: "TBA" format and fee, 12 seats, "Zapisy wkrótce". Once an event
+  has ended (its end time has passed), the button shows "Zobacz wyniki", or "Zobacz stronę
+  turnieju" (the registration link) when there is no results link. Events without a game are
+  shown as generic events.
 - Supports repeating, timed, overnight and multi-day events.
 - **Demo data:** used when no calendar is configured: a weekly tournament schedule that shows
   every default, the same on every reload.

@@ -49,7 +49,8 @@ export interface Messages {
   readonly register: string;
   readonly registerSoon: string;
   readonly results: string;
-  readonly resultsSoon: string;
+  /** Past event without a results link: opens the tournament (registration) page. */
+  readonly tournamentPage: string;
   readonly opensInNewTab: string;
   readonly tba: string;
   readonly free: string;
@@ -105,7 +106,7 @@ export const PL: Messages = {
   register: 'Zapisz się na turniej',
   registerSoon: 'Zapisy wkrótce',
   results: 'Zobacz wyniki',
-  resultsSoon: 'Wyniki wkrótce',
+  tournamentPage: 'Zobacz stronę turnieju',
   opensInNewTab: '(otwiera się w nowej karcie)',
   tba: 'TBA',
   free: 'Bezpłatnie',
@@ -160,7 +161,7 @@ export const EN: Messages = {
   register: 'Register',
   registerSoon: 'Registration soon',
   results: 'See results',
-  resultsSoon: 'Results soon',
+  tournamentPage: 'See tournament page',
   opensInNewTab: '(opens in a new tab)',
   tba: 'TBA',
   free: 'Free',

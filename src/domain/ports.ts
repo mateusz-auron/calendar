@@ -1,4 +1,4 @@
-import type { CalendarEvent } from './calendar-event';
+import type { CalendarEvent, DateTime } from './calendar-event';
 import type { DateRange } from './date-range';
 import type { PlainDate } from './plain-date';
 
@@ -12,9 +12,11 @@ export interface EventRepository {
   findInRange(range: DateRange): Promise<readonly CalendarEvent[]>;
 }
 
-/** Port: current date provider, injected to keep logic deterministic and testable. */
+/** Port: current date/time provider, injected to keep logic deterministic and testable. */
 export interface Clock {
   today(): PlainDate;
+  /** Current date and time of day in the calendar's time zone. */
+  now(): DateTime;
 }
 
 /** What an "add to calendar" link describes. */

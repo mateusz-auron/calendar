@@ -77,8 +77,10 @@ Działają też dłuższe nazwy, np. „Disney Lorcana”, „Pokémon TCG”, �
 
 ### Zapisy i wyniki
 
-Przycisk „Zapisz się na turniej” jest widoczny przed turniejem i w dniu turnieju, a „Zobacz wyniki”
-po turnieju.
+Przycisk „Zapisz się na turniej” jest widoczny do końca turnieju (do godziny zakończenia
+wydarzenia; przy wydarzeniu całodniowym do końca dnia). Po zakończeniu pojawia się „Zobacz wyniki”,
+a jeśli nie ma linku do wyników, „Zobacz stronę turnieju” (prowadzi pod link z pola **Zapisy**).
+Bez żadnego z tych linków przycisku nie ma.
 
 ### Widoczne
 
@@ -121,7 +123,7 @@ Gdy pola brakuje albo jest błędne, strona pokazuje:
 | wpisowe       | „TBA”                                                                                                         |
 | miejsca       | 12                                                                                                            |
 | zapisy        | nieaktywny przycisk „Zapisy wkrótce”                                                                          |
-| wyniki        | po turnieju nieaktywny przycisk „Wyniki wkrótce”                                                              |
+| wyniki        | po turnieju przycisk „Zobacz stronę turnieju” (link z pola Zapisy), a bez niego brak przycisku                |
 | widoczne      | wydarzenie jest widoczne                                                                                      |
 | miejsce       | adres sklepu z ustawień strony (jeśli ustawiony); w przeciwnym razie miejsce i link „Wyznacz trasę” są ukryte |
 

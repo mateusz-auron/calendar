@@ -13,7 +13,8 @@ import { CalendarFormatter } from './calendar-formatter';
 import { CalendarView, type CalendarViewDeps } from './calendar-view';
 import { EN, PL } from './messages';
 
-const clock: Clock = { today: () => plainDate(2026, 11, 7) };
+const NOW = { date: plainDate(2026, 11, 7), time: { hour: 23, minute: 0 } };
+const clock: Clock = { today: () => NOW.date, now: () => NOW };
 
 const links: EventLinks = {
   addToCalendarUrl: ({ title }) => `https://cal.example/add?text=${encodeURIComponent(title)}`,
@@ -215,17 +216,31 @@ describe('CalendarView – details dialog', () => {
     expect(dialog.querySelector('.cal-evnav__pos')?.textContent).toBe('2 / 4');
   });
 
-  it('shows defaults and the "wkrótce" states for a past game event without details', async () => {
+  it('shows defaults and no CTA for a past game event without links', async () => {
     const { root, view, dialog } = createView();
     await view.show(view.month);
     tile(root, 'past')?.click();
     expect(dialog.querySelector('.cal-ev__badge')?.textContent).toBe('Zakończony');
     expect(dialog.querySelector('.cal-ev__fee-value')?.textContent).toBe('TBA');
-    const pending = dialog.querySelector('.cal-cta');
-    expect(pending?.tagName).toBe('SPAN');
-    expect(pending?.getAttribute('aria-disabled')).toBe('true');
-    expect(pending?.textContent).toBe('Wyniki wkrótce');
+    expect(dialog.querySelector('.cal-cta')).toBeNull();
+    expect(dialog.textContent).not.toContain('Wyniki wkrótce');
     expect(dialog.querySelector('.cal-ev__link')?.textContent).toContain('Wyznacz trasę');
+  });
+
+  it('links to the tournament page once an event has ended today without results', async () => {
+    // Today 18:00–21:00, and it is already 23:00.
+    const ended = tournament('ended-today', [2026, 11, 7], {
+      startTime: { hour: 18, minute: 0 },
+      endTime: { hour: 21, minute: 0 },
+    });
+    const { root, view, dialog } = createView(repo([ended]));
+    await view.show(view.month);
+    tile(root, 'ended-today')?.click();
+    expect(dialog.querySelector('.cal-ev__badge')?.textContent).toBe('Zakończony');
+    const cta = dialog.querySelector<HTMLAnchorElement>('a.cal-cta');
+    expect(cta?.textContent).toContain('Zobacz stronę turnieju');
+    expect(cta?.href).toBe('https://register.example/ended-today');
+    expect(dialog.textContent).not.toContain('Zapisz się na turniej');
   });
 
   it('hides the location and directions link when neither the event nor a default has one', async () => {
