@@ -408,16 +408,13 @@ function renderAction(action: EventAction, m: Messages): HTMLElement {
   const register = action.kind === 'register';
   const cls = `cal-cta${register ? '' : ' cal-cta--secondary'}`;
   if (action.link.kind === 'pending') {
-    return h(
-      'span',
-      { class: `${cls} cal-cta--pending`, 'aria-disabled': 'true' },
-      register ? m.registerSoon : m.resultsSoon,
-    );
+    return h('span', { class: `${cls} cal-cta--pending`, 'aria-disabled': 'true' }, m.registerSoon);
   }
+  const label = { register: m.register, results: m.results, page: m.tournamentPage }[action.kind];
   return h(
     'a',
     { class: cls, href: action.link.url, target: '_blank', rel: 'noopener noreferrer' },
-    register ? m.register : m.results,
+    label,
     icon('external', 16),
     h('span', { class: 'visually-hidden' }, ` ${m.opensInNewTab}`),
   );

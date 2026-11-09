@@ -27,7 +27,10 @@ function serviceWith(events: readonly CalendarEvent[]) {
   const repository: EventRepository = { findInRange };
   const service = new CalendarService(
     repository,
-    { today: () => plainDate(2026, 11, 7) },
+    {
+      today: () => plainDate(2026, 11, 7),
+      now: () => ({ date: plainDate(2026, 11, 7), time: { hour: 12, minute: 0 } }),
+    },
     { weekStartsOn: 1, cardDefaults: { seats: 16 } },
   );
   return { service, findInRange };

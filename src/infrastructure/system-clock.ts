@@ -1,4 +1,4 @@
-import type { Clock, PlainDate } from '../domain';
+import type { Clock, DateTime, PlainDate } from '../domain';
 import { toZonedParts } from './zoned-time';
 
 /**
@@ -8,10 +8,14 @@ import { toZonedParts } from './zoned-time';
 export class SystemClock implements Clock {
   constructor(
     private readonly timeZone: string,
-    private readonly now: () => Date = () => new Date(),
+    private readonly instant: () => Date = () => new Date(),
   ) {}
 
   today(): PlainDate {
-    return toZonedParts(this.now(), this.timeZone).date;
+    return this.now().date;
+  }
+
+  now(): DateTime {
+    return toZonedParts(this.instant(), this.timeZone);
   }
 }
