@@ -14,16 +14,13 @@ not appear in the embedded calendar and must not be linked or indexed anywhere.
 GitHub Pages is static and public. Anything in `dist/` can be downloaded by anyone who knows the
 URL; Pages has no login, and we cannot send headers. So "not public" can mean one of two things:
 
-| Option                                         | What a stranger can do                                   | Cost                                                   |
-| ---------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------ |
-| **A. Unlisted page** (recommended, phases 1–4) | Nothing, unless they learn the secret URL.               | Small. Works from a phone; staff just open a bookmark. |
-| **B. Private CI export** (optional, phase 5)   | Nothing. The PNG is a workflow artifact, never deployed. | Needs repo access and a GitHub login to get the file.  |
+**Decision: a custom (secret) URL is sufficient.** The page is unlisted rather than protected:
+only people who know the URL can open it. That is acceptable because the poster only shows events
+that are already public in the calendar, so a leaked URL lets someone draw a picture of public
+data, nothing more. A private export through GitHub Actions was considered and is out of scope
+(§8).
 
-Option A is enough here: the poster only shows events that are already public in the calendar, so
-a leaked URL lets someone draw a picture of public data, nothing more. Option B reuses the same
-renderer, so it can be added later without throwing work away.
-
-### 1.2 The unlisted page (option A)
+### 1.2 The unlisted page
 
 - A second Vite entry, `poster.html`, with its own script `src/poster-main.ts`.
 - **Only built when the repository variable `POSTER_SLUG` is set** (e.g. `plakat-7Hq2xk9F`, at
@@ -257,10 +254,6 @@ Each step ends with `npm run check` green and its own commit.
 7. **Docs + deploy.** README section "Plakat na Facebooka" (where the URL comes from, how to
    rotate it, posting tips), `.env.example`, `deploy.yml` (`POSTER_SLUG`, `VITE_POSTER_FOOTER`),
    CLAUDE.md update.
-8. **(Optional, option B) Private export workflow.** `poster.yml`, `workflow_dispatch` with
-   inputs `month`, `format`, `game`: build, `vite preview`, a Node script with Playwright clicks
-   "Pobierz PNG" for every page and uploads them with `actions/upload-artifact`. Nothing is
-   deployed. Playwright stays a dev dependency.
 
 ## 6. Tests that guard the important promises
 
@@ -292,11 +285,11 @@ Each step ends with `npm run check` green and its own commit.
 
 - Posting to Facebook automatically (needs a Page access token, a server and app review).
 - Instagram/Stories formats (9:16). The layout constants make it a small follow-up.
-- Real authentication on Pages (impossible without a server; option B covers "fully private").
+- Real authentication on Pages (impossible without a server), and a private export through a
+  GitHub Actions workflow artifact. The custom URL was chosen instead (§1.1).
 
 ## 9. Open questions for the store
 
 1. Should the header show the **store's name or logo**? If so, which asset (and licence)?
 2. Footer text: which URL should people type (the page that embeds the calendar)?
 3. Default: one poster for all games, or one poster per game?
-4. Is option A (secret URL) acceptable, or is option B (download from GitHub Actions) required?
