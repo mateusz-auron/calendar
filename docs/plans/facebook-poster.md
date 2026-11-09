@@ -5,7 +5,7 @@ post on the store's Facebook page. It reuses the data pipeline that the calendar
 (the same sources, `toCalendarEvent()`, `visible: nie`, defaults in `buildEventCard`). It must
 not appear in the embedded calendar and must not be linked or indexed anywhere.
 
-> **Status:** proposal, nothing is implemented yet. The open questions are in §9.
+> **Status:** proposal, nothing is implemented yet. The store's answers are in §9.
 
 ## 1. Where it lives and who can reach it
 
@@ -49,16 +49,16 @@ data, nothing more. A private export through GitHub Actions was considered and i
 Facebook shows feed images at the width of the post, which on a phone is about 360–430 CSS px.
 Everything is designed for that.
 
-| Decision          | Value                                                                                        | Why                                                                                                       |
-| ----------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Aspect ratio      | **4:5 portrait, 1080 × 1350** (default); **1:1, 1080 × 1080** as an option                   | 4:5 is the tallest ratio the mobile feed shows uncropped; square is the safe choice for carousels/shares. |
-| Export resolution | Draw at 1080 logical px, export at **2×** (2160 × 2700). Option 1×.                          | Facebook re-compresses and resizes uploads (long edge ≈ 2048 px); a larger source keeps text sharp.       |
-| File type         | **PNG**, opaque background, sRGB                                                             | Text and flat colours survive Facebook's re-compression far better as PNG than JPEG; no transparency.     |
-| Safe margin       | 64 px on every side; nothing important within it                                             | Rounded corners and the feed's crop at different widths.                                                  |
-| Minimum text size | 28 px logical (≈ 10 px on a phone); body 34–38 px; titles 40–44 px; month name 96–110 px     | Readable at the feed width without zooming.                                                               |
-| Contrast          | 4.5:1 or better for all text (reuse the `color`/`tint` pairs from `game-theme.ts`)           | Same accessibility rule as the calendar.                                                                  |
-| Multiple pages    | When the events do not fit, split into **"1/2", "2/2"** images with the same ratio           | A multi-photo post (carousel) keeps all images at one ratio; mixing ratios makes Facebook crop them.      |
-| Links             | Not clickable in an image. A **caption generator** (§4.4) produces the post text with links. | Registration links go in the post text, not in the picture.                                               |
+| Decision          | Value                                                                                         | Why                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Aspect ratio      | **4:5 portrait, 1080 × 1350** (default); **1:1, 1080 × 1080** as an option                    | 4:5 is the tallest ratio the mobile feed shows uncropped; square is the safe choice for carousels/shares. |
+| Export resolution | Draw at 1080 logical px, export at **2×** (2160 × 2700). Option 1×.                           | Facebook re-compresses and resizes uploads (long edge ≈ 2048 px); a larger source keeps text sharp.       |
+| File type         | **PNG**, opaque background, sRGB                                                              | Text and flat colours survive Facebook's re-compression far better as PNG than JPEG; no transparency.     |
+| Safe margin       | 64 px on every side; nothing important within it                                              | Rounded corners and the feed's crop at different widths.                                                  |
+| Minimum text size | 28 px logical (≈ 10 px on a phone); body 34–38 px; titles 40–44 px; month name 96–110 px      | Readable at the feed width without zooming.                                                               |
+| Contrast          | 4.5:1 or better for all text (reuse the `color`/`tint` pairs from `game-theme.ts`)            | Same accessibility rule as the calendar.                                                                  |
+| Multiple pages    | **One image** per month; only when even the densest layout overflows, split into "1/2", "2/2" | A multi-photo post (carousel) keeps all images at one ratio; mixing ratios makes Facebook crop them.      |
+| Links             | Not clickable in an image. A **caption generator** (§4.4) produces the post text with links.  | Registration links go in the post text, not in the picture.                                               |
 
 ### 2.1 Layout (not a month grid)
 
@@ -68,7 +68,7 @@ game colours and logos as `docs/plans/tournament-design.md` §1):
 
 ```
 ┌──────────────────────────────────────────────┐
-│  KALENDARZ TURNIEJÓW                    (1/2) │  kicker, Inter 700, muted
+│  KALENDARZ TURNIEJÓW                          │  kicker, Inter 700, muted (no store logo)
 │  Listopad 2026                                │  Bricolage 800, year in grey
 │  [● Pokémon 4] [● Lorcana 3] [● One Piece 2]  │  per-game counts (only games present)
 │──────────────────────────────────────────────│
@@ -79,7 +79,7 @@ game colours and logos as `docs/plans/tournament-design.md` §1):
 │          │LOGO│ 12:00 · Draft                 │  date block, rows share it
 │  ...                                          │
 │──────────────────────────────────────────────│
-│  Zapisy i szczegóły: <VITE_POSTER_FOOTER>     │  footer text from config
+│  Zapisy i szczegóły: booster-ziomki.pl        │  VITE_POSTER_FOOTER
 │  <VITE_DEFAULT_LOCATION>                      │  store address
 └──────────────────────────────────────────────┘
 ```
@@ -90,9 +90,12 @@ game colours and logos as `docs/plans/tournament-design.md` §1):
 - Long titles: shrink one step, then wrap to two lines, then ellipsis (`…`) using `measureText`.
 - Generic events (no `game:`) use the generic logo and theme; their missing fields are not drawn
   (same rules as `EventCard`, no "TBA" for them).
-- **Density levels** before splitting into pages: `comfortable` (2-line rows) → `compact`
-  (1-line rows: time · title · price) → paginate. With ≤ 8 events one 4:5 page is comfortable;
-  ~14 fit compact; more go to page 2.
+- **One poster per month, all games together.** The goal is a single image with every event of
+  the month, so the layout gets denser instead of splitting: `comfortable` (2-line rows, ≤ ~8
+  events on 4:5) → `compact` (1-line rows: time · title · price, ~14) → `dense` (smaller logo
+  and 30 px text, two events per row line on the same day when they fit, ~24). Only a month
+  with more events than `dense` can hold is split into "1/2", "2/2" as a last resort; the
+  controls then say so.
 - Empty month: a friendly "Turnieje wkrótce" poster instead of an empty list (and a warning in
   the controls that it is probably not what they want to post).
 
@@ -121,7 +124,6 @@ poster.html               the page shell (noindex)
 
 ```ts
 interface PosterOptions {
-  readonly filter: GameFilter; // reuse the calendar's filter
   readonly includeEnded: boolean; // default: false for the current month, true for past months
 }
 interface PosterRow {
@@ -150,8 +152,9 @@ interface PosterModel {
 ### 3.2 `application/poster-pagination.ts` (pure)
 
 Takes the rows, a `measureRow(row, density) → height` function and the available height.
-Returns `{ density, pages: PosterDay[][] }`: `comfortable` if everything
-fits on one page, else `compact`, else compact pages split **between days** (a day is never split
+Returns `{ density, pages: PosterDay[][] }`: the first of `comfortable`,
+`compact`, `dense` that fits **on one page**; only if `dense` overflows, dense pages split
+**between days** (a day is never split
 unless it alone is taller than a page). Pure, so every overflow case is a plain unit test.
 
 ### 3.3 `presentation/poster/poster-renderer.ts`
@@ -178,8 +181,7 @@ unless it alone is taller than a page). Pure, so every overflow case is a plain 
 ### 3.5 `presentation/poster/poster-page.ts` (controls)
 
 - Month picker (‹ month ›, default: **next month** after the 20th of the month, otherwise the
-  current one, because posters are usually made ahead of time); game filter chips (reuse
-  `game-filter.ts`); format 4:5 / 1:1; "Pokaż zakończone"; resolution 2× / 1×.
+  current one, because posters are usually made ahead of time); format 4:5 / 1:1; "Pokaż zakończone"; resolution 2× / 1×.
 - Live preview: one `<canvas>` per page, scaled down with CSS.
 - **"Pobierz PNG"** per page: `canvas.toBlob(…, 'image/png')` → `URL.createObjectURL` →
   `<a download="turnieje-2026-11-1.png">` → click → revoke. A real anchor (the CLAUDE.md link
@@ -199,16 +201,17 @@ CLAUDE.md says `main.ts` is the only composition root. The poster page needs a s
   sources in the same order (API first, snapshot fallback).
 - Update CLAUDE.md ("composition roots: `main.ts` and `poster-main.ts`, sharing `wiring.ts`")
   and the README project tree.
-- `parseConfig` already ignores unknown params; the poster reuses `?month=`, `?game=`, `?lang=`.
+- `parseConfig` already ignores unknown params; the poster reuses `?month=` and `?lang=`
+  (no `?game=`: the poster always shows every game).
 
 ### 3.7 Config
 
 New build-time variables (README, `.env.example`, `deploy.yml` env block):
 
-| Variable             | Meaning                                                              |
-| -------------------- | -------------------------------------------------------------------- |
-| `POSTER_SLUG`        | File name of the poster page; unset ⇒ the page is not built at all.  |
-| `VITE_POSTER_FOOTER` | Footer line, e.g. "Zapisy i szczegóły: sklep.pl/turnieje". Optional. |
+| Variable             | Meaning                                                                |
+| -------------------- | ---------------------------------------------------------------------- |
+| `POSTER_SLUG`        | File name of the poster page; unset ⇒ the page is not built at all.    |
+| `VITE_POSTER_FOOTER` | Site shown in the footer: `booster-ziomki.pl`. Unset ⇒ no footer line. |
 
 The store address reuses `VITE_DEFAULT_LOCATION`. `POSTER_SLUG` is read only by `vite.config.ts`
 (not `VITE_*`), so it is not baked into any bundle that the calendar page loads.
@@ -229,16 +232,16 @@ ndz 15.11 · 12:00 · Lorcana – Set Championship · 30 zł
 ```
 
 Only `http(s)` links (already validated by the adapters). Events with a "pending" link get
-"Zapisy wkrótce". Same filter and `includeEnded` as the image.
+"Zapisy wkrótce". Same events and `includeEnded` as the image.
 
 ## 5. Implementation steps
 
 Each step ends with `npm run check` green and its own commit.
 
 1. **Pure model.** Export `countByFilter` and `compareEvents` where needed; add
-   `poster.ts` + tests (month boundaries, multi-day spans, `includeEnded`, filter, generic events,
+   `poster.ts` + tests (month boundaries, multi-day spans, `includeEnded`, all games together, generic events,
    ordering, an empty month).
-2. **Pagination.** `poster-pagination.ts` + tests (fits comfortable, needs compact, two pages,
+2. **Pagination.** `poster-pagination.ts` + tests (fits comfortable, needs compact, needs dense, overflow to two pages,
    a day never split, a single huge day, zero rows).
 3. **Caption.** `poster-caption.ts` + messages (PL/EN) + tests (pending links, prices, plurals).
 4. **Renderer.** `poster-layout.ts`, `poster-renderer.ts`, `poster-assets.ts` with a recording
@@ -263,7 +266,7 @@ Each step ends with `npm run check` green and its own commit.
   `poster` (assert in the plugin test that the main entry is unchanged).
 - Framed → no poster UI.
 - `visible: nie` events never appear (covered by `toCalendarEvent()`, plus one poster test).
-- Every drawn string is inside the safe margin, for both formats and both densities.
+- Every drawn string is inside the safe margin, for both formats and all three densities.
 
 ## 7. Edge cases
 
@@ -278,8 +281,8 @@ Each step ends with `npm run check` green and its own commit.
 - **Fonts failing to load** (offline): still render with the fallback stack, show a warning.
 - **Price formats:** reuse the formatter used by the dialog ("20 zł", "Bezpłatne", "TBA").
 - **Locale EN:** `?lang=en` gives an English poster; the default follows `VITE_LOCALE`.
-- **High event counts** (> ~28): three or more pages; Facebook allows many photos per post, but
-  show a hint that a game filter (one poster per game) may read better.
+- **High event counts** (> ~24): `dense` no longer fits, so the poster is split into pages as a
+  last resort, with a warning in the controls.
 
 ## 8. Out of scope
 
@@ -288,8 +291,10 @@ Each step ends with `npm run check` green and its own commit.
 - Real authentication on Pages (impossible without a server), and a private export through a
   GitHub Actions workflow artifact. The custom URL was chosen instead (§1.1).
 
-## 9. Open questions for the store
+## 9. Decisions from the store
 
-1. Should the header show the **store's name or logo**? If so, which asset (and licence)?
-2. Footer text: which URL should people type (the page that embeds the calendar)?
-3. Default: one poster for all games, or one poster per game?
+1. **Header:** no store name or logo; the kicker "Kalendarz turniejów" and the month are enough.
+2. **Footer:** "Zapisy i szczegóły: booster-ziomki.pl". The site comes from the repository
+   variable `VITE_POSTER_FOOTER=booster-ziomki.pl` (not hard-coded, per CLAUDE.md).
+3. **Scope:** one poster per month with the events of every game; no game filter on the page.
+4. **Access:** a custom (secret) URL is sufficient (§1.1).
