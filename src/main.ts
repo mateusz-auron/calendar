@@ -1,9 +1,7 @@
 import './presentation/fonts.css';
 import './presentation/styles.css';
 
-import { CalendarService } from './application';
-import { parseConfig, type AppConfig, type EventSourceKind } from './config/app-config';
-import type { EventLinks, EventRepository } from './domain';
+import type { EventLinks } from './domain';
 import {
   DetailsBridge,
   DetailsPageClient,
@@ -11,55 +9,14 @@ import {
   IframeHeightReporter,
   VisibleAreaTracker,
 } from './embed';
-import {
-  CachingEventRepository,
-  DemoEventRepository,
-  detectPlatform,
-  FallbackEventRepository,
-  GoogleCalendarEventRepository,
-  GoogleEventLinks,
-  NativeEventLinks,
-  SnapshotEventRepository,
-  SystemClock,
-} from './infrastructure';
+import { detectPlatform, GoogleEventLinks, NativeEventLinks, SystemClock } from './infrastructure';
 import {
   CalendarFormatter,
   CalendarView,
   messagesFor,
   type CalendarViewDeps,
 } from './presentation';
-
-const browserFetch = (input: string, init?: RequestInit) => fetch(input, init);
-
-function createSource(kind: EventSourceKind, config: AppConfig): EventRepository {
-  const mapping = { timeZone: config.timeZone, fallbackUrl: config.eventUrl, fetch: browserFetch };
-  switch (kind) {
-    case 'google-api':
-      if (!config.google) throw new Error('google-api source selected without credentials');
-      return new GoogleCalendarEventRepository({ ...config.google, ...mapping });
-    case 'ical':
-      // Relative URL: works under any GitHub Pages sub-path.
-      return new SnapshotEventRepository({ url: './events.json', ...mapping });
-    case 'demo':
-      return new DemoEventRepository({ eventUrl: config.eventUrl });
-  }
-}
-
-/**
- * Builds the event source chain, e.g. Google API → (on failure) iCal snapshot,
- * wrapped in a cache so month navigation doesn't re-fetch.
- */
-function createRepository(config: AppConfig): EventRepository {
-  const [firstKind, ...fallbackKinds] = config.eventSources;
-  const chain = fallbackKinds.reduce<EventRepository>(
-    (primary, kind) =>
-      new FallbackEventRepository(primary, createSource(kind, config), (error) => {
-        console.warn('[calendar] primary event source failed, using fallback', error);
-      }),
-    createSource(firstKind, config),
-  );
-  return new CachingEventRepository(chain);
-}
+import { createService, readConfig } from './wiring';
 
 /** Google Calendar everywhere; on phones, directions open the native maps app. */
 function createLinks(timeZone: string): EventLinks {
@@ -69,33 +26,17 @@ function createLinks(timeZone: string): EventLinks {
 }
 
 /**
- * Composition root — the only place that knows concrete implementations.
+ * Composition root of the calendar page (the poster page has its own: poster-main.ts).
  */
 function bootstrap(): void {
   const root = document.getElementById('app');
   if (!root) throw new Error('Missing #app root element');
 
-  const config = parseConfig(window.location.search, {
-    // The store's language and time zone, not the viewer's (override with ?lang= / ?tz=).
-    locale: import.meta.env.VITE_LOCALE,
-    timeZone: import.meta.env.VITE_TIME_ZONE,
-    calendarId: import.meta.env.VITE_GOOGLE_CALENDAR_ID,
-    apiKey: import.meta.env.VITE_GOOGLE_API_KEY,
-    eventSource: import.meta.env.VITE_EVENT_SOURCE,
-    icalSnapshot: import.meta.env.VITE_ICAL_SNAPSHOT === 'true',
-    defaultSeats: import.meta.env.VITE_DEFAULT_SEATS,
-    defaultLocation: import.meta.env.VITE_DEFAULT_LOCATION,
-  });
+  const config = readConfig(window.location.search);
   document.documentElement.lang = config.locale;
 
   const clock = new SystemClock(config.timeZone);
-  const service = new CalendarService(createRepository(config), clock, {
-    weekStartsOn: config.weekStartsOn,
-    cardDefaults: {
-      seats: config.defaultSeats,
-      ...(config.defaultLocation ? { location: config.defaultLocation } : {}),
-    },
-  });
+  const service = createService(config, clock);
   const viewDeps = {
     service,
     formatter: new CalendarFormatter(config.locale),

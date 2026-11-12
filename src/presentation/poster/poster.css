@@ -1,0 +1,117 @@
+/* The staff page that makes the monthly Facebook image. The image itself is drawn on a canvas. */
+.poster {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+.poster__heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.poster__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.poster-nav,
+.poster-formats {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--c-border-2);
+  border-radius: 12px;
+  background: var(--c-bg);
+}
+
+.poster-nav__arrow,
+.poster-format {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.poster-nav__arrow {
+  display: inline-flex;
+  align-items: center;
+}
+
+.poster-nav__arrow:hover,
+.poster-format:hover {
+  background: var(--c-hover);
+}
+
+.poster-nav__month {
+  min-width: 150px;
+  padding: 0 8px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.poster-format + .poster-format {
+  border-left: 1px solid var(--c-border-2);
+}
+
+.poster-format[aria-pressed='true'] {
+  background: var(--c-cta);
+  color: var(--c-cta-fg);
+}
+
+.poster-download {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  margin-left: auto;
+  padding: 0 20px;
+  border-radius: 12px;
+  background: #9a17fa;
+  color: #ffffff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.poster-download[hidden] {
+  display: none;
+}
+
+.poster-status {
+  min-height: 1.4em;
+  margin: 0;
+  color: var(--c-muted);
+  font-size: 14px;
+}
+
+.poster-retry {
+  padding: 4px 12px;
+  border: 1px solid var(--c-strong-border);
+  border-radius: 8px;
+  background: var(--c-bg);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.poster__preview {
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  background: var(--c-surface);
+  line-height: 0;
+}
+
+.poster-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}

@@ -57,6 +57,17 @@ export interface Messages {
   readonly unlimitedSeats: string;
   readonly allDay: string;
   readonly continued: string;
+  /** The staff page that makes the monthly image for Facebook. */
+  readonly poster: {
+    readonly heading: string;
+    readonly format: string;
+    readonly post: string;
+    readonly cover: string;
+    readonly download: string;
+    readonly preparing: string;
+    readonly hidden: (n: number) => string;
+    readonly framed: string;
+  };
 }
 
 export const PL: Messages = {
@@ -113,6 +124,17 @@ export const PL: Messages = {
   unlimitedSeats: 'Bez limitu',
   allDay: 'Cały dzień',
   continued: 'cd.',
+  poster: {
+    heading: 'Grafika miesiąca',
+    format: 'Format grafiki',
+    post: 'Post (4:5)',
+    cover: 'Tło strony (16:9)',
+    download: 'Pobierz PNG',
+    preparing: 'Przygotowuję grafikę…',
+    hidden: (n) =>
+      `${String(n)} ${plural(n, 'wydarzenie nie zmieściło', 'wydarzenia nie zmieściły', 'wydarzeń nie zmieściło')} się na grafice (oznaczenie „+N” przy dniu).`,
+    framed: 'Ta strona nie działa w ramce.',
+  },
 };
 
 const s = (n: number, one: string, many: string) => (n === 1 ? one : many);
@@ -168,6 +190,17 @@ export const EN: Messages = {
   unlimitedSeats: 'Unlimited',
   allDay: 'All day',
   continued: 'cont.',
+  poster: {
+    heading: 'Monthly image',
+    format: 'Image format',
+    post: 'Post (4:5)',
+    cover: 'Page cover (16:9)',
+    download: 'Download PNG',
+    preparing: 'Preparing the image…',
+    hidden: (n) =>
+      `${String(n)} ${s(n, 'event does', 'events do')} not fit in the image (marked "+N" on the day).`,
+    framed: 'This page does not work inside a frame.',
+  },
 };
 
 export function messagesFor(locale: string): Messages {

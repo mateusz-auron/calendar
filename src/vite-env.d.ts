@@ -17,6 +17,8 @@ interface ImportMetaEnv {
   readonly VITE_EVENT_SOURCE?: string;
   /** `true` when the build ships an iCal snapshot (`public/events.json`). Set by CI. */
   readonly VITE_ICAL_SNAPSHOT?: string;
+  /** Text of the pill on the Facebook poster, e.g. the store's website. */
+  readonly VITE_POSTER_SITE?: string;
 }
 
 interface ImportMeta {

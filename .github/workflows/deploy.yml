@@ -87,6 +87,10 @@ jobs:
           VITE_LOCALE: ${{ vars.VITE_LOCALE }}
           VITE_DEFAULT_SEATS: ${{ vars.VITE_DEFAULT_SEATS }}
           VITE_DEFAULT_LOCATION: ${{ vars.VITE_DEFAULT_LOCATION }}
+          VITE_POSTER_SITE: ${{ vars.VITE_POSTER_SITE }}
+          # File name of the unlisted Facebook-image page. A secret (masked in this public log),
+          # not a variable; unset ⇒ the page is not built.
+          POSTER_SLUG: ${{ secrets.POSTER_SLUG }}
           VITE_ICAL_SNAPSHOT: ${{ steps.decide.outputs.ical == 'true' }}
 
       - if: steps.decide.outputs.deploy == 'true'

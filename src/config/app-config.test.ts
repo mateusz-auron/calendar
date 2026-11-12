@@ -102,4 +102,13 @@ describe('parseConfig', () => {
       expect(parseConfig('', { eventSource: 'ical' }).eventSources).toEqual(['demo']);
     });
   });
+
+  it('takes the poster site from the build, trimmed and bounded', () => {
+    expect(parseConfig('', { posterSite: '  booster-ziomki.pl ' }).posterSite).toBe(
+      'booster-ziomki.pl',
+    );
+    expect(parseConfig('', { posterSite: ' ' }).posterSite).toBeUndefined();
+    expect(parseConfig('?posterSite=evil.example').posterSite).toBeUndefined();
+    expect(parseConfig('', { posterSite: 'x'.repeat(200) }).posterSite).toHaveLength(60);
+  });
 });

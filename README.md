@@ -132,6 +132,9 @@ Variables**. For local development, put them in `.env.local` (copy `.env.example
 | `VITE_LOCALE`             | —       | UI language (default `pl-PL`)                                                            |
 | `VITE_DEFAULT_SEATS`      | —       | Seats shown when a tournament gives none (default 12)                                    |
 | `VITE_DEFAULT_LOCATION`   | —       | Optional. Store name and address for events without a location (else no directions link) |
+| `VITE_POSTER_SITE`        | —       | Optional. Text of the pill on the Facebook image, e.g. `booster-ziomki.pl`               |
+
+`POSTER_SLUG` is a repository **secret**, not a variable: see [Facebook image](#facebook-image).
 
 ### How events are shown
 
@@ -146,6 +149,43 @@ Variables**. For local development, put them in `.env.local` (copy `.env.example
 - **Data already loaded** is cached, so going back and forth doesn't fetch it again.
 - **Errors** (calendar not public, wrong key, missing snapshot, network) show a message with a
   **Retry** button.
+
+## Facebook image
+
+A staff page turns a month into a PNG for the store's Facebook page. It draws the same events as
+the calendar, in the look of the calendar page, in two formats:
+
+| Format                | Size        | Use                                                                        |
+| --------------------- | ----------- | -------------------------------------------------------------------------- |
+| **Post (4:5)**        | 2160 × 2700 | A feed post. Month grid with full event tiles (logo, title, time, format). |
+| **Tło strony (16:9)** | 2400 × 1352 | The page's cover photo. Month grid with one compact row per week.          |
+
+Both show only the month name, the site (`VITE_POSTER_SITE`) and the events. Pick the month and
+the format, check the preview, then use **Pobierz PNG**. The page opens on the current month, and
+on the next one after the 20th.
+
+- **Cover crop.** Facebook shows the whole cover on phones and cuts off its top and bottom on
+  desktop, so the cover keeps everything in the middle band and leaves the rest empty.
+- **Busy months.** When a month does not fit, tiles first lose the format pill, then get smaller.
+  Events that still do not fit are counted in a purple "+N" next to the day number, and the page
+  says how many. The cover shows one event per day.
+- **Neighbouring months.** Days of the previous and next month are shown without their events.
+
+### The address is secret, not protected
+
+GitHub Pages has no login, so the page is published under a file name that cannot be guessed:
+
+1. Choose a random name of 12–64 letters, digits or dashes, e.g. `grafika-7Hq2xk9Fz3`.
+2. Add it as the repository **secret** `POSTER_SLUG` (**Settings → Secrets and variables →
+   Actions → Secrets**). A secret, because variables are printed in the public build log.
+3. After the next deployment the page is at `https://<user>.github.io/<repo>/<POSTER_SLUG>.html`.
+
+Without the secret the page is not built at all. Nothing links to it, search engines are told not
+to index it, and it refuses to run inside an iframe. Anyone who learns the address can open it,
+but it only shows events that are already public in the calendar. To change the address, change
+the secret and deploy again; the old file disappears.
+
+Locally, `npm run dev` always serves it at `/poster.html` (`?month=2026-12` picks a month).
 
 ## Deploying to GitHub Pages
 
@@ -277,13 +317,17 @@ src/
 │   ├── seeded-random.ts                     mulberry32 PRNG
 │   └── system-clock.ts
 ├── presentation/    DOM rendering (no innerHTML → XSS-safe), CSS, Intl formatting.
+│   └── poster/             the Facebook image: pure layout → canvas painter, and its staff page
 ├── embed/           Iframe integration (height reporter via postMessage).
 ├── config/          Query-string → typed AppConfig.
-└── main.ts          Composition root: the only place wiring concrete classes.
+├── wiring.ts        Event sources and service, shared by the two composition roots.
+├── main.ts          Composition root of the calendar page (index.html).
+└── poster-main.ts   Composition root of the Facebook image page (poster.html).
 
 scripts/             Build-time Node code (never shipped to the browser).
 ├── sync-ical.ts            CLI: download feed → public/events.json, change detection
-└── ical/ical-to-snapshot.ts  pure iCal → snapshot conversion (ical.js, RRULE expansion)
+├── ical/ical-to-snapshot.ts  pure iCal → snapshot conversion (ical.js, RRULE expansion)
+└── poster/poster-slug.ts   validates POSTER_SLUG for vite.config.ts
 ```
 
 How the SOLID principles show up in the code:
@@ -293,11 +337,12 @@ How the SOLID principles show up in the code:
   were both added this way, without changing the domain or the view. Caching and fallback are
   decorators that wrap any repository.
 - **I**: the ports are small (`findInRange`, `today`).
-- **D**: the application layer depends on abstractions. `main.ts` injects the concrete classes.
+- **D**: the application layer depends on abstractions. The composition roots (`main.ts`,
+  `poster-main.ts`) inject the concrete classes.
 
 ### Adding another event source
 
-Implement the port, then add it to `createSource()` in `src/main.ts`:
+Implement the port, then add it to `createSource()` in `src/wiring.ts`:
 
 ```ts
 export class HttpEventRepository implements EventRepository {

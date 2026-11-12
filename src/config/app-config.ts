@@ -43,6 +43,8 @@ export interface AppConfig {
   readonly defaultSeats: number;
   /** Store address used when an event has no location (`VITE_DEFAULT_LOCATION`). */
   readonly defaultLocation: string | undefined;
+  /** Text of the pill on the Facebook poster, e.g. the store's website (`VITE_POSTER_SITE`). */
+  readonly posterSite: string | undefined;
 }
 
 /** Values that come from the build (env vars) or the browser rather than the URL. */
@@ -57,7 +59,10 @@ export interface ConfigDefaults {
   readonly icalSnapshot?: boolean | undefined;
   readonly defaultSeats?: string | undefined;
   readonly defaultLocation?: string | undefined;
+  readonly posterSite?: string | undefined;
 }
+
+const MAX_POSTER_SITE_LENGTH = 60;
 
 export const DEFAULT_CONFIG: AppConfig = {
   mode: 'calendar',
@@ -72,6 +77,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   initialFilter: 'all',
   defaultSeats: 12,
   defaultLocation: undefined,
+  posterSite: undefined,
 };
 
 /**
@@ -104,6 +110,7 @@ export function parseConfig(search: string, defaults: ConfigDefaults = {}): AppC
     initialFilter: parseGameFilter(params.get('game')),
     defaultSeats: safeSeats(defaults.defaultSeats),
     defaultLocation: defaults.defaultLocation?.trim() || undefined,
+    posterSite: defaults.posterSite?.trim().slice(0, MAX_POSTER_SITE_LENGTH) || undefined,
   };
 }
 

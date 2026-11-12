@@ -13,6 +13,8 @@ by `infrastructure/event-description-parser.ts`; defaults ("TBA", 12 seats, "Zap
 applied in `application/event-card.ts`. An event counts as past from its end time (`hasEnded()` in
 `domain/calendar-event.ts`, fed by `Clock.now()`); then the button links to the results, or to the
 tournament page (registration link) when there are none. `visible: nie` drops the event in the shared `toCalendarEvent()`. The plan is in `docs/plans/tournament-design.md`.
+A second page, `poster.html`, is an unlisted staff tool that draws a month as a PNG for Facebook
+(`docs/plans/facebook-poster.md`).
 Events come from a public Google Calendar in one or both ways:
 
 - **iCal sync**: a scheduled workflow runs `scripts/sync-ical.ts`, which turns the feed in
@@ -71,8 +73,16 @@ domain  <-  application  <-  presentation | infrastructure | embed | config  <- 
   JS, served as is): keep all sides of the protocol in sync with README, "Message contract".
   The calendar iframe must never be moved or resized to show details: that is what caused
   flicker and layout jumps in an earlier design.
+- `src/presentation/poster/`: the Facebook image. `poster-content.ts` maps a `MonthView` to
+  strings and logos, `poster-layout.ts` is the **pure** layout (a list of draw operations; all
+  sizing and overflow rules live and are tested here), `poster-painter.ts` paints the list on a
+  2D context, `CanvasPosterSurface` owns the `<canvas>`, fonts and PNG export, and `PosterPage` is
+  the staff UI. It is not exported from the presentation barrel, so the calendar bundle never
+  contains it. Event text reaches the image only through `fillText`.
 - `src/config/`: parses query-string parameters into a typed `AppConfig`.
-- `src/main.ts`: the **composition root**. It is the only file that instantiates concrete classes.
+- `src/main.ts` and `src/poster-main.ts`: the **composition roots** (calendar page and poster
+  page). Only they and the shared `src/wiring.ts` (event sources, `CalendarService`) instantiate
+  concrete classes.
 
 `eslint.config.js` encodes these boundaries with `no-restricted-imports`. If lint reports a
 boundary error, move the code to the correct layer or add a port. Do not disable the rule.
@@ -80,7 +90,8 @@ boundary error, move the code to the correct layer or add a port. Do not disable
 ## Conventions
 
 - **SOLID / DI**: classes receive their collaborators through the constructor. To add a capability,
-  add a port in `domain/ports.ts` and an adapter in `infrastructure/`, then wire both in `main.ts`.
+  add a port in `domain/ports.ts` and an adapter in `infrastructure/`, then wire both in `main.ts`
+  (or `wiring.ts` when the poster page needs it too).
 - **Dates**: always use `PlainDate` / `YearMonth`. Months are **1-based**. Do not pass JS `Date`
   objects across layers. `Intl` formatting uses `timeZone: 'UTC'` with `Date.UTC(...)`.
 - **DOM**: build elements with `h()` from `presentation/dom.ts`. **Never use `innerHTML`**, because
@@ -120,7 +131,14 @@ repository's Pages source must be set to **GitHub Actions**, and `main` must be 
 - `ICAL_URL` (and optionally `ICAL_PAST_MONTHS` / `ICAL_FUTURE_MONTHS`);
 - `VITE_GOOGLE_CALENDAR_ID`, `VITE_GOOGLE_API_KEY`, `VITE_TIME_ZONE` (default `Europe/Warsaw`),
   `VITE_EVENT_SOURCE`, `VITE_LOCALE` (default `pl-PL`);
-- `VITE_DEFAULT_SEATS` (default 12) and `VITE_DEFAULT_LOCATION` (the store address).
+- `VITE_DEFAULT_SEATS` (default 12) and `VITE_DEFAULT_LOCATION` (the store address);
+- `VITE_POSTER_SITE` (the pill on the Facebook image).
+
+The poster page is built only when the repository **secret** `POSTER_SLUG` is set, and is
+published as `<POSTER_SLUG>.html` (`vite.config.ts`, validated by `scripts/poster/poster-slug.ts`).
+The address is the only protection, so never link to it, never print the slug, and keep it a
+secret rather than a variable (variables show up in the public build log). The page must keep its
+`noindex` meta and its refusal to run inside a frame.
 
 The workflow also runs every 10 minutes. Those scheduled runs only re-sync the iCal feed, skip
 the checks, and deploy only when the events changed compared with the live `events.json`.
